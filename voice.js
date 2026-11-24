@@ -134,7 +134,7 @@
     if (!clean) return;
     speaking = true;
     restartAfterSpeech = active && !muted;
-    if (recognition) { try { recognition.stop(); } catch {} }
+    // Mantém o reconhecimento ativo durante a fala para detectar a palavra de ativação "DINA".
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(clean.slice(0, 7000));
     utterance.lang = "pt-BR";
@@ -157,7 +157,7 @@
   }
 
   function startRecognition() {
-    if (!recognition || !active || muted || speaking) return;
+    if (!recognition || !active || muted) return;
     try { recognition.start(); }
     catch (error) {
       logAudio("Exceção em recognition.start()", error.name + ": " + error.message);
@@ -179,6 +179,19 @@
         const phrase = event.results[i][0].transcript;
         if (event.results[i].isFinal) finalText += phrase + " ";
         else interimText += phrase;
+      }
+      // Enquanto a DINA fala, só aceitamos a palavra de ativação; ignoramos o eco da própria voz.
+      if (speaking) {
+        const heard = (finalText + " " + interimText).toLocaleLowerCase("pt-BR");
+        if (/(^|\\W)dina(\\W|$)/i.test(heard)) {
+          logAudio("Palavra de ativação detectada", "DINA");
+          restartAfterSpeech = false;
+          if (synth) synth.cancel();
+          speaking = false;
+          setStatus("Pode falar. Estou ouvindo…", "listening");
+          startRecognition();
+        }
+        return;
       }
       if (interimText) {
         roomTranscript.textContent = interimText;
@@ -265,7 +278,24 @@
     startRecognition();
   }
 
+  function interruptAndListen() {
+    if (!active) { openVoiceRoom(); return; }
+    // Interrompe imediatamente a síntese e mantém a sala aberta para ouvir o usuário.
+    restartAfterSpeech = false;
+    if (synth) synth.cancel();
+    speaking = false;
+    muted = false;
+    if (muteButton) {
+      muteButton.textContent = "🎙️";
+      muteButton.classList.remove("is-muted");
+    }
+    setStatus("Pode falar. Estou ouvindo…", "listening");
+    startRecognition();
+    logAudio("Interrupção manual", "DINA parou de falar e voltou a ouvir");
+  }
+
   micButton.addEventListener("click", openVoiceRoom);
+  orb?.addEventListener("click", interruptAndListen);
   $("#voice-close")?.addEventListener("click", closeRoom);
   $("#voice-end")?.addEventListener("click", closeRoom);
   room.addEventListener("cancel", (event) => { event.preventDefault(); closeRoom(); });

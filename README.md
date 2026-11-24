@@ -132,3 +132,40 @@ A API usa saldo pré-pago e cobra por segundo conforme modelo e resolução. Con
 Esta versão inicial não envia imagens de referência; inclui somente texto para vídeo. O provedor exige conteúdo de adultos, consentimento e autorização para qualquer semelhança usada. São proibidos menores, pessoas reais sem consentimento e figuras públicas. A declaração na interface não substitui a responsabilidade de cumprir as regras do provedor e a legislação aplicável.
 
 Documentação: [Nureta Video API](https://developer.nureta.ai/docs/video) · [Autenticação e tarefas](https://developer.nureta.ai/docs)
+
+
+## DINA Video Engine — motor próprio experimental
+
+O objetivo desta etapa é permitir que a DINA controle uma instalação própria do [ComfyUI](https://github.com/comfyanonymous/ComfyUI), separada dos provedores comerciais de vídeo. A configuração-alvo inicial é **Wan 2.2 TI2V-5B em 720p**. A interface e a API da DINA permanecem no Cloudflare Pages; o processamento precisa ocorrer em uma máquina GPU remota.
+
+### Estado desta implementação
+
+- A rota `GET /api/video-engine` verifica, com autenticação, se o ComfyUI está acessível.
+- O diagnóstico consulta `/system_stats` e retorna somente informações básicas dos dispositivos, sem expor URL ou token.
+- A fila de geração ainda fica desabilitada até instalarmos e validarmos um workflow Wan 2.2 compatível.
+- Não existe GPU gratuita garantida. Ambientes gratuitos têm cotas, disponibilidade variável e termos próprios; podem não permitir conteúdo adulto. Não use esses ambientes para esse fim sem autorização expressa do fornecedor.
+- A geração de conteúdo adulto não é garantida pelo modelo. Só use material envolvendo adultos e consentimento explícito; nunca use imagens íntimas de terceiros sem autorização.
+
+### Conectar um servidor ComfyUI
+
+Configure em Cloudflare Pages → Settings → Variables and Secrets → Production:
+
+| Nome | Tipo | Finalidade |
+|---|---|---|
+| `DINA_VIDEO_ENGINE_URL` | Variable | URL HTTPS pública e protegida do ComfyUI, sem barra final |
+| `DINA_VIDEO_ENGINE_TOKEN` | Secret | Token Bearer exigido pelo gateway/proxy que protege o ComfyUI |
+
+**Não exponha o ComfyUI diretamente à internet.** Coloque-o atrás de um gateway HTTPS com autenticação e limite de acesso. O token deve ser validado nesse gateway; a instalação padrão do ComfyUI não deve ser presumida como um serviço autenticado.
+
+Depois de configurar as variáveis e publicar, a rota autenticada `/api/video-engine` informa se o servidor está online. A rota exige o cabeçalho `X-DINA-ACCESS-CODE`, enviado pela interface da DINA.
+
+### Próximas etapas técnicas
+
+1. Selecionar um host GPU com política que permita o uso pretendido; a opção gratuita é experimental e sem garantia.
+2. Instalar ComfyUI e validar a memória de GPU disponível.
+3. Instalar os pesos e nós necessários do Wan 2.2 TI2V-5B, respeitando a licença e os requisitos oficiais.
+4. Criar e testar um workflow 720p com um vídeo não sensível.
+5. Implementar fila, consulta de progresso, cancelamento e entrega segura do MP4.
+6. Só então habilitar o botão de geração na DINA.
+
+A rota atual é apenas diagnóstico de conectividade; ela não gera nem envia vídeos.

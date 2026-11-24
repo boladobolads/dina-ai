@@ -39,7 +39,7 @@ async function requestGeminiModel(env, contents, model) {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents,
       ...(env.DINA_WEB_SEARCH === "false" ? {} : { tools: [{ google_search: {} }] }),
-      generationConfig: { maxOutputTokens: 3000, temperature: 0.7 }
+      generationConfig: { maxOutputTokens: 3000, temperature: 1.0 }
     }),
     signal: AbortSignal.timeout(45000)
   });
@@ -171,6 +171,41 @@ async function callOpenRouter(env, messages) {
   return output;
 }
 
+function isWeatherQuestion(text) {
+  return /\\b(previs[aã]o|clima|temperatura|vai chover|chance de chuva|tempo (?:hoje|amanh[ãa]))\\b/i.test(text);
+}
+function extractWeatherCity(text) {
+  const match = text.match(/\\b(?:em|para|no|na)\\s+([\\p{L}][\\p{L} .'-]{1,45}?)(?=\\s+(?:hoje|amanh[ãa]|agora|nesta semana|nos pr[oó]ximos)\\b|[?.!,]|$)/iu);
+  if (match?.[1]) return match[1].trim();
+  if (/s[aã]o paulo/i.test(text)) return 'São Paulo';
+  return '';
+}
+async function getLiveWeatherContext(question) {
+  const city = extractWeatherCity(question);
+  if (!city) return 'A pergunta pede previsão do tempo, mas não foi possível identificar a cidade. Peça a cidade ao usuário.';
+  const geoUrl = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&language=pt&format=json';
+  const geoResponse = await fetch(geoUrl, { signal: AbortSignal.timeout(12000) });
+  if (!geoResponse.ok) throw new Error('Falha ao localizar a cidade no serviço meteorológico.');
+  const geo = await geoResponse.json();
+  const place = geo.results?.[0];
+  if (!place) return 'A cidade ' + city + ' não foi encontrada. Peça ao usuário que confirme o município.';
+  const forecastUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + place.latitude + '&longitude=' + place.longitude + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=' + encodeURIComponent(place.timezone || 'auto') + '&forecast_days=7';
+  const forecastResponse = await fetch(forecastUrl, { signal: AbortSignal.timeout(12000) });
+  if (!forecastResponse.ok) throw new Error('Falha ao consultar a previsão meteorológica.');
+  const forecast = await forecastResponse.json();
+  const codes = {0:'céu limpo',1:'predominantemente limpo',2:'parcialmente nublado',3:'nublado',45:'nevoeiro',48:'nevoeiro com geada',51:'garoa fraca',53:'garoa moderada',55:'garoa intensa',61:'chuva fraca',63:'chuva moderada',65:'chuva forte',80:'pancadas fracas',81:'pancadas moderadas',82:'pancadas fortes',95:'trovoadas',96:'trovoadas com granizo',99:'trovoadas fortes com granizo'};
+  const days = (forecast.daily?.time || []).map((date, i) => ({ date, condition: codes[forecast.daily.weather_code?.[i]] || 'condição variável', minC: forecast.daily.temperature_2m_min?.[i], maxC: forecast.daily.temperature_2m_max?.[i], precipitationProbability: forecast.daily.precipitation_probability_max?.[i] }));
+  return 'DADOS METEOROLÓGICOS CONSULTADOS AGORA (Open-Meteo) para ' + place.name + (place.admin1 ? ', ' + place.admin1 : '') + ', ' + (place.country || '') + '. Fuso: ' + (place.timezone || 'local') + '. Previsão diária: ' + JSON.stringify(days) + '. Responda especificamente para a data solicitada, com mínima, máxima, condição e chance de chuva. Não diga que está sem acesso à internet, pois estes dados foram consultados agora. Fonte: ' + forecastUrl + ' ; geocodificação: ' + geoUrl;
+}
+async function addLiveContext(messages) {
+  const latest = messages[messages.length - 1];
+  if (!latest || latest.role !== 'user' || !isWeatherQuestion(latest.content)) return messages;
+  let context;
+  try { context = await getLiveWeatherContext(latest.content); }
+  catch (error) { context = 'A consulta meteorológica em tempo real falhou: ' + (error?.message || 'serviço indisponível') + '. Informe essa falha com transparência e não invente previsão.'; }
+  return [...messages.slice(0, -1), { ...latest, content: latest.content + '\\n\\n[CONTEXTO EXTERNO VERIFICADO PELO SERVIDOR]\\n' + context }];
+}
+
 const runners = { gemini: callGemini, openrouter: callOpenRouter, openai: callOpenAI, ollama: callOllama };
 
 export async function onRequestPost({ request, env }) {
@@ -180,6 +215,7 @@ export async function onRequestPost({ request, env }) {
   try { body = await request.json(); } catch { return fail("Solicitação inválida."); }
   if (!Array.isArray(body.messages) || body.messages.length === 0) return fail("Envie uma mensagem para começar.");
   const messages = body.messages.slice(-30);
+  const messagesWithLiveContext = await addLiveContext(messages);
   if (messages.some(m => !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string")) return fail("Histórico de conversa inválido.");
   const requested = typeof body.provider === "string" ? body.provider : "auto";
   if (!["auto", "gemini", "openrouter", "ollama", "openai"].includes(requested)) return fail("Motor de IA inválido.");
@@ -190,7 +226,7 @@ export async function onRequestPost({ request, env }) {
   const errors = [];
   for (const provider of available) {
     try {
-      const answer = await runners[provider](env, messages);
+      const answer = await runners[provider](env, messagesWithLiveContext);
       return Response.json({ answer, provider }, { headers: noStore });
     } catch (error) {
       errors.push(provider + ": " + (error?.message || "falha de conexão"));

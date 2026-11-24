@@ -177,9 +177,13 @@
     utterance.onend = () => {
       speaking = false;
       if (active && restartAfterSpeech && !muted) {
-        setStatus("Estou ouvindo…", "listening");
-        window.setTimeout(() => { if (active && !muted && recognition) { try { recognition.start(); } catch {} } }, 400);
-      } else if (active) setStatus("Microfone pausado.", "idle");
+        // Assim que a voz da DINA termina, o microfone fica pronto para a próxima fala.
+        setStatus("Sua vez! Pode falar.", "listening");
+        logAudio("DINA terminou de falar", "reativando escuta imediatamente");
+        startRecognition();
+      } else if (active) {
+        setStatus("Microfone pausado.", "idle");
+      }
     };
     utterance.onerror = () => { speaking = false; if (active) setStatus("Não foi possível reproduzir a resposta.", "error"); };
     synth.speak(utterance);
@@ -264,7 +268,8 @@
     };
     recognition.onend = () => {
       logAudio("SpeechRecognition onend", "active=" + active + "; muted=" + muted + "; speaking=" + speaking);
-      if (active && !muted) window.setTimeout(startRecognition, 300);
+      // O Chrome pode encerrar o reconhecimento sozinho; mantém a conversa viva.
+      if (active && !muted) window.setTimeout(startRecognition, 100);
     };
   }
 

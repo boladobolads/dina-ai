@@ -198,9 +198,9 @@ async function searchWebContext(question) {
     } catch {}
     const title = cleanSearchText(match[2]);
     const after = html.slice(match.index + match[0].length, match.index + match[0].length + 1800);
-    const snippetMatch = after.match(/class="result__snippet"[^>]*>([\\s\\S]*?)<\\/(?:a|td|div)>/i);
+    const snippetMatch = after.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|td|div)>/i);
     const snippet = cleanSearchText(snippetMatch?.[1] || "");
-    if (title && /^https?:\\/\\//i.test(href)) results.push({ title, url: href, snippet });
+    if (title && /^https?:\/\//i.test(href)) results.push({ title, url: href, snippet });
   }
   if (!results.length) throw new Error("A pesquisa foi executada, mas não retornou resultados legíveis.");
   return "RESULTADOS DE PESQUISA NA WEB, obtidos agora para a pergunta: " + question + "\\n" +

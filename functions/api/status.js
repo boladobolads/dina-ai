@@ -12,6 +12,7 @@ export async function onRequestGet({ env }) {
     defaultProvider: "auto",
     providerOrder: order,
     video: Boolean(env.NURETA_API_KEY),
+    videoEngine: Boolean(env.DINA_VIDEO_ENGINE_URL),
     ready: Boolean(env.DINA_ACCESS_CODE && order.length)
   }, { headers: { "Cache-Control": "no-store" } });
 }

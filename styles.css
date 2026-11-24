@@ -22,3 +22,24 @@
 #voice-status[data-state="speaking"]{color:#b9adff}
 #voice-status[data-state="error"]{color:#ff9da8}
 @media(max-width:520px){.voice-top{align-items:flex-start;flex-direction:column}.voice-actions{width:100%}.voice-actions button{flex:1}}
+
+/* Destaque do controle de voz no cabeçalho para ficar visível ao abrir a DINA */
+.topbar .voice-controls{display:flex;align-items:center;gap:12px;width:auto;margin:0;padding:6px 9px;border-radius:12px}
+.topbar .voice-top{display:flex;align-items:center;gap:10px}
+.topbar .voice-top>div:first-child{min-width:105px}
+.topbar .voice-top b{font-size:10px}
+.topbar .voice-top small{font-size:9px;white-space:nowrap}
+.topbar .voice-actions{display:flex;gap:5px}
+.topbar .voice-actions button{padding:7px 9px;white-space:nowrap}
+.topbar .voice-transcript{display:none}
+@media(max-width:760px){
+ .topbar{gap:7px;padding:0 9px}
+ .topbar .voice-controls{gap:5px;padding:4px}
+ .topbar .voice-top{gap:5px}
+ .topbar .voice-top>div:first-child{min-width:0}
+ .topbar .voice-top b{font-size:9px}
+ .topbar .voice-top small{display:none}
+ .topbar .voice-actions button{font-size:9px;padding:7px 6px}
+ .provider-picker{font-size:0}
+ .provider-picker select{font-size:9px;max-width:90px}
+}

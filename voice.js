@@ -155,6 +155,39 @@
       speak(current);
     }
   }
+  function handleVoiceCommand(phrase) {
+    const normalized = String(phrase || "").toLocaleLowerCase("pt-BR")
+      .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[.,!?;:]/g, " ").replace(/\\s+/g, " ").trim();
+    const command = normalized.replace(/^dina[ ,]+/, "").replace(/^(por favor )/, "");
+    const patterns = [
+      [/^(?:ativar |mudar para |trocar para |selecionar )?(?:voz )?(?:dina|feminina|voz normal|normal)$/, "dina"],
+      [/^(?:ativar |mudar para |trocar para |selecionar )?(?:voz )?(?:jarvis|masculina)$/, "jarvis"],
+      [/^(?:ativar |mudar para |trocar para |selecionar )?(?:voz )?(?:fish 1|fish um|fish audio 1|fish audio um)$/, "fish"],
+      [/^(?:ativar |mudar para |trocar para |selecionar )?(?:voz )?(?:fish 2|fish dois|fish audio 2|fish audio dois)$/, "fish2"],
+      [/^(?:ativar |mudar para |trocar para |selecionar )?(?:voz )?(?:fish 3|fish tres|fish audio 3|fish audio tres)$/, "fish3"]
+    ];
+    const match = patterns.find(([pattern]) => pattern.test(command));
+    if (!match || !voiceProfile) return false;
+    const profile = match[1];
+    voiceProfile.value = profile;
+    applyVoiceProfile();
+    if (speechSilenceTimer) window.clearTimeout(speechSilenceTimer);
+    speechSilenceTimer = null;
+    lastVoiceSubmission = phrase;
+    const labels = {
+      dina: "DINA feminina natural",
+      jarvis: "JARVIS masculina",
+      fish: "FISH 1, jovem e descontraída",
+      fish2: "FISH 2, comandante",
+      fish3: "FISH 3, executivo"
+    };
+    const confirmation = labels[profile] + " ativada. Pode falar.";
+    roomTranscript.textContent = "DINA: " + confirmation;
+    transcript.textContent = confirmation;
+    logAudio("Comando de troca de voz reconhecido", labels[profile]);
+    speak(confirmation);
+    return true;
+  }
   voiceProfile?.addEventListener("change", applyVoiceProfile);
 
   function stopCurrentSpeech() {
@@ -360,6 +393,7 @@
         speechSilenceTimer = window.setTimeout(() => {
           const phrase = (roomTranscript.textContent || "").trim();
           if (active && !speaking && phrase && phrase !== lastVoiceSubmission && !phrase.startsWith("Você:")) {
+            if (handleVoiceCommand(phrase)) return;
             lastVoiceSubmission = phrase;
             $("#message").value = phrase;
             roomTranscript.textContent = "Você: " + phrase;
@@ -372,6 +406,7 @@
         if (speechSilenceTimer) window.clearTimeout(speechSilenceTimer);
         speechSilenceTimer = null;
         const phrase = finalText.trim();
+        if (phrase !== lastVoiceSubmission && handleVoiceCommand(phrase)) return;
         if (phrase !== lastVoiceSubmission) {
           lastVoiceSubmission = phrase;
           $("#message").value = phrase;

@@ -108,3 +108,27 @@ Nunca coloque o conteúdo de `.dev.vars` no GitHub.
 8. Implementar testes automatizados, observabilidade e proteção contra abuso.
 
 A arquitetura é modular: novos provedores podem ser adicionados no backend sem expor suas credenciais ao navegador.
+
+ 
+## DINA Studio — geração de vídeo
+
+O DINA Studio integra opcionalmente a Nureta Developer API para criação de vídeos por texto. A chave nunca é enviada ao navegador nem armazenada no GitHub.
+
+### Configuração
+1. Crie uma conta e uma chave em [Nureta Developer](https://developer.nureta.ai/).
+2. Adicione `NURETA_API_KEY` em Cloudflare Pages → Settings → Variables and Secrets → Production como **Secret**.
+3. Faça um novo deploy.
+4. Abra **DINA Studio** na barra lateral. Marque as confirmações de maioridade, consentimento e cobrança antes de solicitar uma geração.
+
+A API usa saldo pré-pago e cobra por segundo conforme modelo e resolução. Consulte o saldo no Studio e confira os preços oficiais antes de gerar. A DINA não compra créditos nem recarrega saldo automaticamente.
+
+### Recursos desta primeira versão
+- Texto para vídeo, 480p / 720p / 1080p.
+- Durações de 5 a 180 segundos (clipes maiores podem ser compostos por cenas).
+- Formatos paisagem, vertical e quadrado.
+- Consulta manual do status e reprodução do resultado.
+- Chave protegida no backend Cloudflare.
+
+Esta versão inicial não envia imagens de referência; inclui somente texto para vídeo. O provedor exige conteúdo de adultos, consentimento e autorização para qualquer semelhança usada. São proibidos menores, pessoas reais sem consentimento e figuras públicas. A declaração na interface não substitui a responsabilidade de cumprir as regras do provedor e a legislação aplicável.
+
+Documentação: [Nureta Video API](https://developer.nureta.ai/docs/video) · [Autenticação e tarefas](https://developer.nureta.ai/docs)

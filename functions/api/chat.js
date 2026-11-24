@@ -65,13 +65,13 @@ function configured(env, provider) {
 function normalizeBase(url) {
   return url.replace(/\/+$/, "");
 }
-async function requestGeminiModel(env, contents, model) {
+async function requestGeminiModel(env, contents, model, systemPrompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: activeSystemPrompt }] },
+      systemInstruction: { parts: [{ text: systemPrompt }] },
       contents,
       ...(env.DINA_WEB_SEARCH === "false" ? {} : { tools: [{ google_search: {} }] }),
       generationConfig: { maxOutputTokens: 3000, temperature: 1.0 }
@@ -91,7 +91,7 @@ async function requestGeminiModel(env, contents, model) {
   if (!answer) throw new Error("Gemini não retornou texto.");
   return answer;
 }
-async function callGemini(env, messages) {
+async function callGemini(env, messages, systemPrompt) {
   const contents = messages.map(m => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content.slice(0, 20000) }]
@@ -103,7 +103,7 @@ async function callGemini(env, messages) {
     let lastError;
     for (let tries = 0; tries < 2; tries++) {
       try {
-        return await requestGeminiModel(env, contents, model);
+        return await requestGeminiModel(env, contents, model, systemPrompt);
       } catch (error) {
         lastError = error;
         if (!transient.has(error.status) || tries === 1) break;
@@ -123,7 +123,7 @@ async function callGemini(env, messages) {
     }
   }
 }
-async function callOpenAI(env, messages) {
+async function callOpenAI(env, messages, systemPrompt) {
   const tools = env.ENABLE_WEB_SEARCH === "true" ? [{ type: "web_search" }] : undefined;
   const input = messages.map(m => ({
     role: m.role,
@@ -134,7 +134,7 @@ async function callOpenAI(env, messages) {
     headers: { Authorization: "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: env.OPENAI_MODEL,
-      instructions: activeSystemPrompt,
+      instructions: systemPrompt,
       input,
       ...(tools ? { tools } : {}),
       max_output_tokens: 3000
@@ -149,7 +149,7 @@ async function callOpenAI(env, messages) {
   if (!answer) throw new Error("OpenAI não retornou texto.");
   return answer;
 }
-async function callOllama(env, messages) {
+async function callOllama(env, messages, systemPrompt) {
   const base = normalizeBase(env.OLLAMA_BASE_URL);
   const response = await fetch(base + "/api/chat", {
     method: "POST",
@@ -158,7 +158,7 @@ async function callOllama(env, messages) {
       model: env.OLLAMA_MODEL,
       stream: false,
       messages: [
-        { role: "system", content: activeSystemPrompt },
+        { role: "system", content: systemPrompt },
         ...messages.map(m => ({ role: m.role, content: m.content.slice(0, 20000) }))
       ],
       options: { temperature: 0.7 }
@@ -172,7 +172,7 @@ async function callOllama(env, messages) {
   return answer;
 }
 
-async function callOpenRouter(env, messages) {
+async function callOpenRouter(env, messages, systemPrompt) {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -279,7 +279,7 @@ export async function onRequestPost({ request, env }) {
   const errors = [];
   for (const provider of available) {
     try {
-      const answer = await runners[provider](env, messagesWithLiveContext);
+      const answer = await runners[provider](env, messagesWithLiveContext, activeSystemPrompt);
       return Response.json({ answer, provider }, { headers: noStore });
     } catch (error) {
       errors.push(provider + ": " + (error?.message || "falha de conexão"));

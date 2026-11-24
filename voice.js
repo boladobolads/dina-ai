@@ -124,7 +124,13 @@
   function speak(text) {
     if (!synth || !text || !active) return;
     const clean = String(text).replace(/https?:\/\/\S+/g, "link disponível na conversa")
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/[*_#`]/g, "").trim();
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      // Emojis continuam visíveis no chat, mas não são narrados pela voz.
+      .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, "")
+      .replace(/[*_#`]/g, "")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\s+([,.!?;:])/g, "$1")
+      .trim();
     if (!clean) return;
     speaking = true;
     restartAfterSpeech = active && !muted;

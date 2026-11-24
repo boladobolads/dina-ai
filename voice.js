@@ -124,8 +124,19 @@
       transcript.textContent = "Aguardando sua fala…";
       setStatus("Preparando o microfone…", "listening");
       recognition.start();
-    } catch {
-      setStatus("Não foi possível acessar o microfone. Verifique a permissão.", "error");
+    } catch (error) {
+      active = false;
+      micButton.textContent = "🎙️";
+      const reason = error?.name || error?.message || "erro desconhecido";
+      const messages = {
+        NotAllowedError: "Acesso bloqueado. Autorize o microfone nas permissões do site e do Windows.",
+        PermissionDeniedError: "Acesso negado. Autorize o microfone nas permissões do site e do Windows.",
+        NotFoundError: "Nenhum microfone foi encontrado. Conecte ou habilite um dispositivo.",
+        NotReadableError: "O microfone está sendo usado por outro aplicativo ou não pode ser acessado.",
+        OverconstrainedError: "O microfone disponível não atende aos requisitos do navegador.",
+        SecurityError: "O navegador bloqueou o microfone. Abra a DINA em HTTPS."
+      };
+      setStatus(messages[reason] || ("Falha ao iniciar o microfone: " + reason), "error");
     }
   });
 

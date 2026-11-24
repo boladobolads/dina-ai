@@ -88,7 +88,7 @@ Altere `DINA_PROVIDER_ORDER` para mudar a prioridade. O modo Automático tenta s
 
 Conecte este repositório ao Cloudflare Pages. Use a raiz do projeto como diretório de saída; não é necessária etapa de build para esta versão estática com Pages Functions. As funções em `functions/api` serão publicadas como endpoints.
 
-Depois de adicionar ou alterar variáveis, faça um novo deploy.
+Depois de adicionar ou alterar variáveis, faça um novo deploy. Cada atualização do código enviada à branch `main` também deve iniciar uma nova publicação automática; confira se o commit mais recente aparece no histórico de Deployments.
 
 ## Desenvolvimento local
 

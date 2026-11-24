@@ -206,12 +206,12 @@
 
   async function speak(text) {
     if (!text || !active) return;
-    const clean = String(text).replace(/https?:\\/\\/\\S+/g, "link disponível na conversa")
-      .replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1")
-      .replace(/[\\p{Extended_Pictographic}\\p{Emoji_Presentation}\\uFE0F\\u200D]/gu, "")
+    const clean = String(text).replace(/https?:\/\/\S+/g, "link disponível na conversa")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, "")
       .replace(/[*_#`]/g, "")
-      .replace(/[ \\t]{2,}/g, " ")
-      .replace(/\\s+([,.!?;:])/g, "$1")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\s+([,.!?;:])/g, "$1")
       .trim();
     if (!clean) return;
 

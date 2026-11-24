@@ -19,6 +19,44 @@
   let speaking = false;
   let restartAfterSpeech = false;
 
+  // Diagnóstico visível: registra etapas e erros sem coletar mensagens ou chaves.
+  const diag = document.createElement("section");
+  diag.id = "voice-diagnostics";
+  diag.style.cssText = "width:min(100%,560px);margin:18px auto 0;text-align:left;background:#111827;border:1px solid #374151;border-radius:12px;padding:12px;color:#e5e7eb;font:12px/1.45 monospace";
+  diag.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><strong>Diagnóstico do áudio</strong><button type="button" id="voice-copy-log" style="padding:6px 10px;border-radius:8px">Copiar log</button></div><pre id="voice-log" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;margin:0">Aguardando teste…</pre>';
+  room.querySelector(".voice-room-inner")?.appendChild(diag);
+  const logOutput = diag.querySelector("#voice-log");
+  const logLines = [];
+  function logAudio(label, detail = "") {
+    const line = new Date().toLocaleTimeString("pt-BR") + " | " + label + (detail ? " | " + detail : "");
+    logLines.push(line);
+    if (logLines.length > 80) logLines.shift();
+    if (logOutput) logOutput.textContent = logLines.join("\\n");
+    console.info("[DINA-VOICE]", line);
+  }
+  diag.querySelector("#voice-copy-log")?.addEventListener("click", async () => {
+    const report = [
+      "DINA - DIAGNÓSTICO DE ÁUDIO",
+      "Navegador: " + navigator.userAgent,
+      "HTTPS seguro: " + window.isSecureContext,
+      "SpeechRecognition: " + Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+      "MediaDevices: " + Boolean(navigator.mediaDevices),
+      ...logLines
+    ].join("\\n");
+    try {
+      await navigator.clipboard.writeText(report);
+      diag.querySelector("#voice-copy-log").textContent = "Copiado!";
+    } catch (error) {
+      logAudio("Falha ao copiar log", error.name + ": " + error.message);
+      logOutput.textContent = report;
+    }
+  });
+  logAudio("Script de voz carregado", "secureContext=" + window.isSecureContext +
+    "; SpeechRecognition=" + Boolean(window.SpeechRecognition || window.webkitSpeechRecognition) +
+    "; mediaDevices=" + Boolean(navigator.mediaDevices));
+  window.addEventListener("error", e => logAudio("Erro JavaScript", (e.message || "sem mensagem") + " em " + (e.filename || "") + ":" + (e.lineno || "")));
+  window.addEventListener("unhandledrejection", e => logAudio("Promise rejeitada", e.reason?.name + ": " + e.reason?.message));
+
   function setStatus(message, state = "") {
     status.textContent = message;
     status.dataset.state = state;
@@ -87,7 +125,10 @@
   function startRecognition() {
     if (!recognition || !active || muted || speaking) return;
     try { recognition.start(); }
-    catch (error) { if (error.name !== "InvalidStateError") setStatus("Falha ao iniciar reconhecimento: " + error.message, "error"); }
+    catch (error) {
+      logAudio("Exceção em recognition.start()", error.name + ": " + error.message);
+      if (error.name !== "InvalidStateError") setStatus("Falha ao iniciar reconhecimento: " + error.message, "error");
+    }
   }
 
   if (SpeechRecognition) {
@@ -96,7 +137,7 @@
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    recognition.onstart = () => setStatus("Estou ouvindo…", "listening");
+    recognition.onstart = () => { logAudio("SpeechRecognition onstart", "reconhecimento iniciado"); setStatus("Estou ouvindo…", "listening"); };
     recognition.onresult = (event) => {
       let finalText = "";
       let interimText = "";
@@ -118,6 +159,7 @@
       }
     };
     recognition.onerror = (event) => {
+      logAudio("SpeechRecognition onerror", "error=" + event.error + "; message=" + (event.message || "não informado") + "; readyState=" + document.readyState);
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         active = false;
         setStatus("Permita o microfone nas configurações do navegador.", "error");
@@ -128,11 +170,19 @@
       }
     };
     recognition.onend = () => {
+      logAudio("SpeechRecognition onend", "active=" + active + "; muted=" + muted + "; speaking=" + speaking);
       if (active && !speaking && !muted) window.setTimeout(startRecognition, 300);
     };
   }
 
   async function openVoiceRoom() {
+    logAudio("Clique no microfone", "secureContext=" + window.isSecureContext + "; permission API=" + Boolean(navigator.permissions));
+    if (navigator.permissions?.query) {
+      navigator.permissions.query({ name: "microphone" }).then(p => {
+        logAudio("Permissão do navegador", "state=" + p.state);
+        p.onchange = () => logAudio("Permissão alterada", "state=" + p.state);
+      }).catch(e => logAudio("Consulta de permissão indisponível", e.name + ": " + e.message));
+    }
     // A sala deve abrir mesmo quando o navegador não oferece reconhecimento de fala.
     try {
       if (!room.open) room.showModal();
@@ -143,6 +193,7 @@
     setStatus("Preparando o microfone…", "idle");
 
     if (!SpeechRecognition) {
+      logAudio("API ausente", "SpeechRecognition não está disponível neste navegador");
       setStatus("A tela de voz abriu, mas este navegador não oferece reconhecimento de fala. Teste no Chrome ou Edge atualizado.", "error");
       roomTranscript.textContent = "Reconhecimento de voz indisponível neste navegador.";
       return;
@@ -154,6 +205,7 @@
     muted = false;
     micButton.textContent = "🔴";
     setStatus("Iniciando reconhecimento de voz…", "idle");
+    logAudio("Solicitando início do reconhecimento", "idioma=pt-BR; continuous=true");
     startRecognition();
   }
 

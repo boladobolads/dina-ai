@@ -10,7 +10,7 @@
   const orb = $("#voice-orb");
   const muteButton = $("#voice-mute");
   const voiceProfile = $("#voice-profile");
-  let selectedProfile = localStorage.getItem("dina_voice_profile") || "dina";
+  let selectedProfile = localStorage.getItem("dina_voice_profile") === "jarvis" ? "jarvis" : "dina";
   if (voiceProfile) voiceProfile.value = selectedProfile;
   if (!micButton || !status || !transcript || !room) return;
 

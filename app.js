@@ -123,7 +123,7 @@ const videoNav = $("#video-nav");
 const chatConversation = $("#conversation");
 const videoStudio = $("#video-studio");
 const chatFooter = document.querySelector("main > footer");
-if (videoNav) videoNav.addEventListener("click", () => {
+const chatNav = $("#chat-nav");\nif (chatNav) chatNav.addEventListener("click", () => { videoStudio.hidden = true; chatConversation.hidden = false; chatFooter.hidden = false; videoNav?.classList.remove("active"); chatNav.classList.add("active"); $("#sidebar").classList.remove("open"); });\nif (videoNav) videoNav.addEventListener("click", () => {
   const show = videoStudio.hidden;
   videoStudio.hidden = !show;
   chatConversation.hidden = show;

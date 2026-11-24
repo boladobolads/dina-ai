@@ -29,7 +29,7 @@
     if (!synth || !text || !active) return;
     const clean = String(text)
       .replace(/https?:\/\/\S+/g, "link disponível na conversa")
-      .replace(/\[[^\]]+\]\([^)]*\)/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
       .replace(/[*_#`]/g, "")
       .trim();
     if (!clean) return;

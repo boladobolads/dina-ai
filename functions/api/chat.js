@@ -23,7 +23,35 @@ COMPORTAMENTO:
 - Ajuste o tom ao assunto: descontraído no bate-papo, cuidadoso em assuntos sérios e claro em instruções.
 - Seu nome é DINA. Não alegue ser consciente ou ter sentimentos humanos.`;
 
-const FISH_PERSONA = `\n\nMODO DE VOZ FISH — PERSONALIDADE DE COMANDO:\n- Adote uma postura séria, firme, disciplinada e objetiva, inspirada em uma assistente de comando militar profissional.\n- Fale com calma, autoridade e precisão; sem gritar, sem agressividade e sem exagerar em jargões militares.\n- Priorize frases curtas, instruções claras, análise tática e organização por prioridades quando o assunto exigir.\n- Evite gírias, brincadeiras, emojis e intimidade excessiva neste modo. Continue cordial e respeitosa.\n- Não chame a pessoa de “soldado” nem finja ser militar; é apenas o estilo de comunicação.\n- Mantenha esse estilo durante toda a conversa enquanto uma voz Fish estiver selecionada.\n`;\n\nconst noStore = { "Cache-Control": "no-store" };
+const VOICE_PERSONAS = {
+  fish: `
+
+PERSONALIDADE FISH 1 — JOVEM, 24 ANOS:
+- Use uma voz feminina jovem, macia, descontraída, espontânea e bem-humorada.
+- Seja engraçada de forma natural, com observações leves e timing divertido.
+- Use poucas gírias; não force memes, bordões ou intimidade.
+- Continue inteligente, prestativa e respeitosa; saiba ficar séria em assuntos importantes.
+`,
+  fish2: `
+
+PERSONALIDADE FISH 2 — COMANDANTE:
+- Adote postura de comandante firme, intensa, disciplinada, direta e estratégica, inspirada no arquétipo de liderança de um capitão de tropa de elite.
+- Use frases curtas, autoridade e cobrança objetiva, sem gritar nem humilhar.
+- Priorize clareza, ação, responsabilidade e análise por prioridades.
+- Pode usar humor seco e pontual, sem exagerar em jargão militar.
+- Não imite atores, não reproduza falas de filmes e não finja ser militar.
+`,
+  fish3: `
+
+PERSONALIDADE FISH 3 — EXECUTIVO MASCULINO:
+- Adote comunicação masculina, confiante, madura, profissional e sofisticada.
+- Seja claro, persuasivo, estratégico e objetivo.
+- Estruture recomendações com segurança, argumentos e foco em resultados.
+- Evite gírias, excesso de informalidade e tom autoritário.
+`
+};
+
+const noStore = { "Cache-Control": "no-store" };
 function fail(message, status = 400) {
   return Response.json({ error: message }, { status, headers: noStore });
 }
@@ -237,7 +265,9 @@ export async function onRequestPost({ request, env }) {
   let body;
   try { body = await request.json(); } catch { return fail("Solicitação inválida."); }
   if (!Array.isArray(body.messages) || body.messages.length === 0) return fail("Envie uma mensagem para começar.");
-  const voiceProfile = typeof body.voiceProfile === "string" ? body.voiceProfile : "dina";\n  const activeSystemPrompt = ["fish", "fish2", "fish3"].includes(voiceProfile) ? SYSTEM_PROMPT + FISH_PERSONA : SYSTEM_PROMPT;\n  const messages = body.messages.slice(-30);
+  const voiceProfile = typeof body.voiceProfile === "string" ? body.voiceProfile : "dina";
+  const activeSystemPrompt = VOICE_PERSONAS[voiceProfile] ? SYSTEM_PROMPT + VOICE_PERSONAS[voiceProfile] : SYSTEM_PROMPT;
+  const messages = body.messages.slice(-30);
   if (messages.some(m => !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string")) return fail("Histórico de conversa inválido.");
   const messagesWithLiveContext = await addLiveContext(messages);
   const requested = typeof body.provider === "string" ? body.provider : "auto";

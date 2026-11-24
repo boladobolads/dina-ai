@@ -71,6 +71,7 @@ dialog.voice-room::backdrop{background:#090d1b}
 .voice-room-logo{width:35px;height:35px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#a394ff,#686bd5);font:800 20px Manrope}
 .voice-room-inner h2{font:600 clamp(23px,4vw,34px) Manrope;margin:0 0 9px}
 .voice-room-inner>p{color:#b4b4d0;font-size:13px;margin:0}
+.voice-choice-label{margin-top:18px;margin-bottom:7px;color:#c7c4e4;font-size:12px;font-weight:600;letter-spacing:.3px}.voice-profile{width:min(340px,90%);padding:12px 14px;border:1px solid #8d83d866;border-radius:12px;background:#171a35;color:#f7f5ff;font:500 13px "DM Sans",sans-serif;outline:none}.voice-profile:focus{border-color:#b6adff;box-shadow:0 0 0 3px #8d83d833}
 .voice-orb{border:0;padding:0;cursor:pointer;color:inherit;appearance:none;-webkit-appearance:none;width:190px;height:190px;position:relative;margin:42px auto 30px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#c9c0ff 0%,#8b83ed 18%,#5757bd 48%,#25285c 72%,#151a37 100%);box-shadow:0 0 45px #887aff55,0 0 100px #615cda25;transition:transform .25s,box-shadow .25s}
 .voice-orb span{width:65%;height:65%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e0dcff,#a49bff 35%,#6663ce 75%);filter:blur(1px)}
 .voice-orb i{position:absolute;inset:-13px;border:1px solid #b6adff45;border-radius:50%}

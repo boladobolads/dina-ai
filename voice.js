@@ -157,7 +157,7 @@
   }
   function handleVoiceCommand(phrase) {
     const normalized = String(phrase || "").toLocaleLowerCase("pt-BR")
-      .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[.,!?;:]/g, " ").replace(/\\s+/g, " ").trim();
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,!?;:]/g, " ").replace(/\s+/g, " ").trim();
     const command = normalized.replace(/^dina[ ,]+/, "").replace(/^(por favor )/, "");
     const patterns = [
       [/^(?:ativar |mudar para |trocar para |selecionar )?(?:voz )?(?:dina|feminina|voz normal|normal)$/, "dina"],

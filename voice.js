@@ -1,10 +1,9 @@
 (() => {
   const $ = (s) => document.querySelector(s);
-  const startButton = $("#voice-start");
-  const stopButton = $("#voice-stop");
+  const micButton = $("#voice-start");
   const status = $("#voice-status");
   const transcript = $("#voice-transcript");
-  if (!startButton || !stopButton || !status || !transcript) return;
+  if (!micButton || !status || !transcript) return;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const synth = window.speechSynthesis;
@@ -16,6 +15,20 @@
   function setStatus(message, state = "") {
     status.textContent = message;
     status.dataset.state = state;
+    micButton.classList.toggle("is-active", active);
+    micButton.setAttribute("aria-label", active ? "Desativar microfone" : "Ativar microfone");
+    micButton.title = active ? "Desativar microfone" : "Ativar microfone";
+  }
+
+  function stopVoice() {
+    active = false;
+    restartAfterSpeech = false;
+    speaking = false;
+    if (recognition) { try { recognition.stop(); } catch {} }
+    if (synth) synth.cancel();
+    micButton.disabled = false;
+    micButton.textContent = "🎙️";
+    setStatus("Microfone desligado.");
   }
 
   function chooseFemalePortugueseVoice() {
@@ -35,9 +48,7 @@
     if (!clean) return;
     speaking = true;
     restartAfterSpeech = active;
-    if (recognition) {
-      try { recognition.stop(); } catch {}
-    }
+    if (recognition) { try { recognition.stop(); } catch {} }
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(clean.slice(0, 7000));
     utterance.lang = "pt-BR";
@@ -49,31 +60,23 @@
     utterance.onend = () => {
       speaking = false;
       if (active && restartAfterSpeech) {
-        setStatus("Pode falar…", "listening");
-        window.setTimeout(() => {
-          if (active && recognition) {
-            try { recognition.start(); } catch {}
-          }
-        }, 350);
-      } else if (!active) setStatus("Conversa por voz encerrada.");
+        setStatus("Estou ouvindo…", "listening");
+        window.setTimeout(() => { if (active && recognition) { try { recognition.start(); } catch {} } }, 350);
+      }
     };
-    utterance.onerror = () => {
-      speaking = false;
-      if (active) setStatus("Não foi possível reproduzir a voz.", "error");
-    };
+    utterance.onerror = () => { speaking = false; if (active) setStatus("Não foi possível reproduzir a voz.", "error"); };
     synth.speak(utterance);
   }
 
   if (!SpeechRecognition) {
-    startButton.disabled = true;
-    setStatus("Reconhecimento de voz indisponível neste navegador. Use Chrome ou Edge atualizado.");
+    micButton.disabled = true;
+    setStatus("Reconhecimento de voz indisponível. Use Chrome ou Edge atualizado.", "error");
   } else {
     recognition = new SpeechRecognition();
     recognition.lang = "pt-BR";
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-
     recognition.onstart = () => setStatus("Estou ouvindo…", "listening");
     recognition.onresult = (event) => {
       let finalText = "";
@@ -85,8 +88,7 @@
       }
       if (interimText) transcript.textContent = "Reconhecendo: " + interimText;
       if (finalText.trim()) {
-        const input = $("#message");
-        input.value = finalText.trim();
+        $("#message").value = finalText.trim();
         transcript.textContent = "Você: " + finalText.trim();
         $("#chat-form").requestSubmit();
       }
@@ -94,57 +96,42 @@
     recognition.onerror = (event) => {
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         active = false;
-        setStatus("Permita o acesso ao microfone nas configurações do navegador.", "error");
+        micButton.textContent = "🎙️";
+        setStatus("Permita o acesso ao microfone no navegador.", "error");
       } else if (event.error !== "no-speech" && event.error !== "aborted") {
         setStatus("Erro no microfone: " + event.error, "error");
       }
     };
     recognition.onend = () => {
-      if (active && !speaking) {
-        window.setTimeout(() => {
-          if (active && !speaking) {
-            try { recognition.start(); } catch {}
-          }
-        }, 250);
-      }
+      if (active && !speaking) window.setTimeout(() => {
+        if (active && !speaking) { try { recognition.start(); } catch {} }
+      }, 250);
     };
   }
 
-  startButton.addEventListener("click", async () => {
+  micButton.addEventListener("click", async () => {
+    if (active) { stopVoice(); return; }
     if (!recognition) return;
     if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus("Este navegador não permite acesso ao microfone. Use uma conexão HTTPS.");
+      setStatus("Use uma conexão HTTPS para acessar o microfone.", "error");
       return;
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach(track => track.stop());
       active = true;
+      micButton.textContent = "🔴";
       transcript.textContent = "Aguardando sua fala…";
-      startButton.disabled = true;
-      stopButton.disabled = false;
       setStatus("Preparando o microfone…", "listening");
       recognition.start();
     } catch {
-      setStatus("Não foi possível acessar o microfone. Verifique a permissão do navegador.", "error");
+      setStatus("Não foi possível acessar o microfone. Verifique a permissão.", "error");
     }
-  });
-
-  stopButton.addEventListener("click", () => {
-    active = false;
-    restartAfterSpeech = false;
-    speaking = false;
-    if (recognition) { try { recognition.stop(); } catch {} }
-    if (synth) synth.cancel();
-    startButton.disabled = false;
-    stopButton.disabled = true;
-    setStatus("Conversa por voz encerrada.");
   });
 
   document.addEventListener("dina:assistant-response", event => {
     if (active && event.detail?.text) speak(event.detail.text);
   });
-
   if (synth) synth.onvoiceschanged = () => chooseFemalePortugueseVoice();
-  stopButton.disabled = true;
+  setStatus("Microfone desligado.");
 })();

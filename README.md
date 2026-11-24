@@ -33,6 +33,15 @@ Configure em Settings → Variables and Secrets. Cadastre chaves e códigos como
 | `OPENAI_API_KEY` | Secret | Para OpenAI | Chave secreta da API OpenAI |
 | `OPENAI_MODEL` | Variable | Para OpenAI | Identificador de um modelo habilitado no projeto |
 | `ENABLE_WEB_SEARCH` | Variable | Não | Defina `true` para habilitar a ferramenta de pesquisa da OpenAI |
+| `DINA_WEB_SEARCH` | Variable | Não | Pesquisa Google integrada ao Gemini; ativada por padrão. Defina `false` para desativar |
+
+### Pesquisa na web e informações atuais
+
+- **Gemini:** a DINA usa Google Search grounding integrado à API Gemini por padrão, sem exigir uma chave de pesquisa adicional. A resposta pode incluir links das páginas consultadas. Para desativar, defina `DINA_WEB_SEARCH=false`.
+- **OpenRouter:** para habilitar pesquisa quando esse motor for selecionado, defina `ENABLE_WEB_SEARCH=true`. A integração usa o plugin Web do OpenRouter (`:online`); disponibilidade, modelos compatíveis e eventuais custos dependem do provedor/modelo escolhido.
+- **OpenAI:** `ENABLE_WEB_SEARCH=true` habilita a ferramenta `web_search` quando o motor OpenAI está configurado.
+- A pesquisa é acionada pelo próprio motor durante a resposta; clima, notícias e outros dados atuais devem ser conferidos nas fontes e datas apresentadas. A disponibilidade depende do modelo, da região e das cotas do provedor.
+
 
 Você pode começar somente com Gemini: configure `DINA_ACCESS_CODE`, `GEMINI_API_KEY` e `GEMINI_MODEL`. Para acrescentar modelos gratuitos de vários provedores, configure `OPENROUTER_API_KEY`; sem `OPENROUTER_MODEL`, será usado `openrouter/free`. Não é necessário configurar OpenAI para a DINA responder. O backend repete automaticamente falhas temporárias (como HTTP 429/503) e tenta o modelo alternativo `GEMINI_FALLBACK_MODEL`; por padrão, usa `gemini-3.5-flash-lite`.
 

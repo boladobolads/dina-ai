@@ -23,7 +23,7 @@ COMPORTAMENTO:
 - Ajuste o tom ao assunto: descontraído no bate-papo, cuidadoso em assuntos sérios e claro em instruções.
 - Seu nome é DINA. Não alegue ser consciente ou ter sentimentos humanos.`;
 
-const noStore = { "Cache-Control": "no-store" };
+const FISH_PERSONA = `\n\nMODO DE VOZ FISH — PERSONALIDADE DE COMANDO:\n- Adote uma postura séria, firme, disciplinada e objetiva, inspirada em uma assistente de comando militar profissional.\n- Fale com calma, autoridade e precisão; sem gritar, sem agressividade e sem exagerar em jargões militares.\n- Priorize frases curtas, instruções claras, análise tática e organização por prioridades quando o assunto exigir.\n- Evite gírias, brincadeiras, emojis e intimidade excessiva neste modo. Continue cordial e respeitosa.\n- Não chame a pessoa de “soldado” nem finja ser militar; é apenas o estilo de comunicação.\n- Mantenha esse estilo durante toda a conversa enquanto uma voz Fish estiver selecionada.\n`;\n\nconst noStore = { "Cache-Control": "no-store" };
 function fail(message, status = 400) {
   return Response.json({ error: message }, { status, headers: noStore });
 }
@@ -43,7 +43,7 @@ async function requestGeminiModel(env, contents, model) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      systemInstruction: { parts: [{ text: activeSystemPrompt }] },
       contents,
       ...(env.DINA_WEB_SEARCH === "false" ? {} : { tools: [{ google_search: {} }] }),
       generationConfig: { maxOutputTokens: 3000, temperature: 1.0 }
@@ -106,7 +106,7 @@ async function callOpenAI(env, messages) {
     headers: { Authorization: "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: env.OPENAI_MODEL,
-      instructions: SYSTEM_PROMPT,
+      instructions: activeSystemPrompt,
       input,
       ...(tools ? { tools } : {}),
       max_output_tokens: 3000
@@ -130,7 +130,7 @@ async function callOllama(env, messages) {
       model: env.OLLAMA_MODEL,
       stream: false,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: activeSystemPrompt },
         ...messages.map(m => ({ role: m.role, content: m.content.slice(0, 20000) }))
       ],
       options: { temperature: 0.7 }
@@ -157,7 +157,7 @@ async function callOpenRouter(env, messages) {
       model: (env.OPENROUTER_MODEL || "openrouter/free") + (env.ENABLE_WEB_SEARCH === "true" ? ":online" : ""),
       plugins: env.ENABLE_WEB_SEARCH === "true" ? [{ id: "web" }] : undefined,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: activeSystemPrompt },
         ...messages.map(m => ({ role: m.role, content: m.content.slice(0, 20000) }))
       ],
       temperature: 0.7,
@@ -237,7 +237,7 @@ export async function onRequestPost({ request, env }) {
   let body;
   try { body = await request.json(); } catch { return fail("Solicitação inválida."); }
   if (!Array.isArray(body.messages) || body.messages.length === 0) return fail("Envie uma mensagem para começar.");
-  const messages = body.messages.slice(-30);
+  const voiceProfile = typeof body.voiceProfile === "string" ? body.voiceProfile : "dina";\n  const activeSystemPrompt = ["fish", "fish2", "fish3"].includes(voiceProfile) ? SYSTEM_PROMPT + FISH_PERSONA : SYSTEM_PROMPT;\n  const messages = body.messages.slice(-30);
   if (messages.some(m => !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string")) return fail("Histórico de conversa inválido.");
   const messagesWithLiveContext = await addLiveContext(messages);
   const requested = typeof body.provider === "string" ? body.provider : "auto";

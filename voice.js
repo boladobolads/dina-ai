@@ -10,7 +10,8 @@
   const orb = $("#voice-orb");
   const muteButton = $("#voice-mute");
   const voiceProfile = $("#voice-profile");
-  let selectedProfile = localStorage.getItem("dina_voice_profile") === "jarvis" ? "jarvis" : "dina";
+  let savedProfile = localStorage.getItem("dina_voice_profile");
+  let selectedProfile = ["dina", "jarvis", "fish"].includes(savedProfile) ? savedProfile : "dina";
   if (voiceProfile) voiceProfile.value = selectedProfile;
   if (!micButton || !status || !transcript || !room) return;
 
@@ -124,6 +125,7 @@
     const names = {
       dina: /female|feminina|woman|mulher|francisca|maria|luciana|camila|fernanda|heloisa|helena|leticia|bruna/i,
       jarvis: /male|mascul|homem|daniel|ricardo|antonio|carlos|jorge|felipe|thiago|bruno|guilherme|google português do brasil/i,
+      fish: /female|feminina|woman|mulher|francisca|maria|luciana|camila|fernanda|heloisa|helena|leticia|bruna/i,
     };
     const natural = /natural|online|neural|google/i;
     const matching = pool.filter(v => names[profile]?.test(v.name));
@@ -138,6 +140,7 @@
     const labels = {
       dina: "DINA feminina selecionada",
       jarvis: "Perfil JARVIS selecionado",
+      fish: "Fish Audio — voz personalizada selecionada",
     };
     logAudio("Perfil de voz alterado", labels[selectedProfile] || selectedProfile);
     if (active && speaking) {
@@ -214,6 +217,15 @@
       .replace(/\s+([,.!?;:])/g, "$1")
       .trim();
     if (!clean) return;
+
+    if (selectedProfile !== "fish") {
+      stopCurrentSpeech();
+      const browserRun = speechRun;
+      speaking = true;
+      restartAfterSpeech = active && !muted;
+      speakWithBrowser(clean, browserRun);
+      return;
+    }
 
     stopCurrentSpeech();
     const run = speechRun;

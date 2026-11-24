@@ -31,7 +31,7 @@ function setBusy(value) {
   $("#message").disabled = value;
   $("#provider").disabled = value;
 }
-const providerNames = { gemini: "Gemini", ollama: "Ollama", openai: "OpenAI", auto: "Automático" };
+const providerNames = { gemini: "Gemini", openrouter: "OpenRouter", ollama: "Ollama", openai: "OpenAI", auto: "Automático" };
 async function sendMessage(value) {
   const message = value.trim();
   if (!message || busy) return;
@@ -107,7 +107,7 @@ $("#access-form").addEventListener("submit", e => {
     const response = await fetch("/api/status");
     const data = await response.json();
     const select = $("#provider");
-    for (const provider of ["gemini", "ollama", "openai"]) {
+    for (const provider of ["gemini", "openrouter", "ollama", "openai"]) {
       const option = select.querySelector('option[value="' + provider + '"]');
       option.disabled = !data.providers?.[provider];
       if (option.disabled) option.textContent += " (não configurado)";

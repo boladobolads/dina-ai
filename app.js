@@ -1,7 +1,8 @@
 const $ = s => document.querySelector(s);
 const history = [];
 let busy = false;
-let toastTimer;\nlet currentVideoId = "";
+let toastTimer;
+let currentVideoId = "";
 function toast(message) {
   const el = $("#toast");
   el.textContent = message;
@@ -111,7 +112,9 @@ $("#access-form").addEventListener("submit", e => {
       option.disabled = !data.providers?.[provider];
       if (option.disabled) option.textContent += " (não configurado)";
     }
-    const videoNav = $("#video-nav");\n    if (videoNav) { videoNav.classList.toggle("configured", Boolean(data.video)); videoNav.title = data.video ? "Gerador de vídeo conectado" : "Configure NURETA_API_KEY no Cloudflare"; }\n    const available = Object.values(data.providers || {}).some(Boolean);
+    const videoNav = $("#video-nav");
+    if (videoNav) { videoNav.classList.toggle("configured", Boolean(data.video)); videoNav.title = data.video ? "Gerador de vídeo conectado" : "Configure NURETA_API_KEY no Cloudflare"; }
+    const available = Object.values(data.providers || {}).some(Boolean);
     if (!available) toast("Configure pelo menos um motor de IA no Cloudflare para conversar.");
     if (data.accessRequired && !sessionStorage.getItem("dina_access_code")) $("#access").showModal();
   } catch {
@@ -123,7 +126,9 @@ const videoNav = $("#video-nav");
 const chatConversation = $("#conversation");
 const videoStudio = $("#video-studio");
 const chatFooter = document.querySelector("main > footer");
-const chatNav = $("#chat-nav");\nif (chatNav) chatNav.addEventListener("click", () => { videoStudio.hidden = true; chatConversation.hidden = false; chatFooter.hidden = false; videoNav?.classList.remove("active"); chatNav.classList.add("active"); $("#sidebar").classList.remove("open"); });\nif (videoNav) videoNav.addEventListener("click", () => {
+const chatNav = $("#chat-nav");
+if (chatNav) chatNav.addEventListener("click", () => { videoStudio.hidden = true; chatConversation.hidden = false; chatFooter.hidden = false; videoNav?.classList.remove("active"); chatNav.classList.add("active"); $("#sidebar").classList.remove("open"); });
+if (videoNav) videoNav.addEventListener("click", () => {
   const show = videoStudio.hidden;
   videoStudio.hidden = !show;
   chatConversation.hidden = show;

@@ -9,6 +9,9 @@
   const roomTranscript = $("#voice-room-transcript");
   const orb = $("#voice-orb");
   const muteButton = $("#voice-mute");
+  const voiceProfile = $("#voice-profile");
+  let selectedProfile = localStorage.getItem("dina_voice_profile") || "dina";
+  if (voiceProfile) voiceProfile.value = selectedProfile;
   if (!micButton || !status || !transcript || !room) return;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -106,20 +109,40 @@
     setStatus("Microfone desligado.");
   }
 
-  function choosePortugueseVoice() {
+  function choosePortugueseVoice(profile = selectedProfile) {
     const voices = synth ? synth.getVoices() : [];
     const pt = voices.filter(v => /^pt(-|_)/i.test(v.lang));
     const brazilian = pt.filter(v => /^pt[-_]BR$/i.test(v.lang));
-    // Prioriza vozes femininas/naturais em português brasileiro.
-    const femaleHints = /female|feminina|woman|mulher|francisca|maria|luciana|camila|fernanda|heloisa|helena|leticia|bruna|google português do brasil/i;
-    const naturalHints = /natural|online|neural|google/i;
     const pool = brazilian.length ? brazilian : pt;
-    return pool.find(v => femaleHints.test(v.name) && naturalHints.test(v.name))
-      || pool.find(v => femaleHints.test(v.name))
-      || pool.find(v => naturalHints.test(v.name))
-      || pool[0]
-      || null;
+    const names = {
+      dina: /female|feminina|woman|mulher|francisca|maria|luciana|camila|fernanda|heloisa|helena|leticia|bruna/i,
+      jarvis: /male|mascul|homem|daniel|ricardo|antonio|carlos|jorge|felipe|thiago|bruno|guilherme|google português do brasil/i,
+      luffy: /male|mascul|homem|daniel|ricardo|antonio|carlos|jorge|felipe|thiago|bruno|guilherme/i
+    };
+    const natural = /natural|online|neural|google/i;
+    const matching = pool.filter(v => names[profile]?.test(v.name));
+    return matching.find(v => natural.test(v.name)) || matching[0]
+      || pool.find(v => natural.test(v.name)) || pool[0] || voices[0] || null;
   }
+
+  function applyVoiceProfile() {
+    if (!voiceProfile) return;
+    selectedProfile = voiceProfile.value;
+    localStorage.setItem("dina_voice_profile", selectedProfile);
+    const labels = {
+      dina: "DINA feminina selecionada",
+      jarvis: "Perfil JARVIS selecionado",
+      luffy: "Perfil LUFFY selecionado"
+    };
+    logAudio("Perfil de voz alterado", labels[selectedProfile] || selectedProfile);
+    if (active && speaking) {
+      const current = roomTranscript.textContent.replace(/^DINA:\s*/, "");
+      if (synth) synth.cancel();
+      speaking = false;
+      speak(current);
+    }
+  }
+  voiceProfile?.addEventListener("change", applyVoiceProfile);
 
   function speak(text) {
     if (!synth || !text || !active) return;
@@ -139,10 +162,16 @@
     const utterance = new SpeechSynthesisUtterance(clean.slice(0, 7000));
     utterance.lang = "pt-BR";
     // Perfil vocal inspirado em uma assistente futurista: calmo, claro e refinado.
-    utterance.rate = 0.93;
-    utterance.pitch = 1.0;
+    const profiles = {
+      dina: { rate: 0.93, pitch: 1.0 },
+      jarvis: { rate: 0.88, pitch: 0.72 },
+      luffy: { rate: 1.08, pitch: 1.22 }
+    };
+    const profile = profiles[selectedProfile] || profiles.dina;
+    utterance.rate = profile.rate;
+    utterance.pitch = profile.pitch;
     utterance.volume = 1;
-    const voice = choosePortugueseVoice();
+    const voice = choosePortugueseVoice(selectedProfile);
     if (voice) utterance.voice = voice;
     utterance.onstart = () => setStatus("A DINA está respondendo por voz…", "speaking");
     utterance.onend = () => {
@@ -321,6 +350,6 @@
       speak(event.detail.text);
     }
   });
-  if (synth) synth.onvoiceschanged = choosePortugueseVoice;
+  if (synth) synth.onvoiceschanged = () => choosePortugueseVoice(selectedProfile);
   setStatus("Microfone desligado.");
 })();

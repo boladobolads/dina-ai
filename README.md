@@ -1,48 +1,56 @@
 # DINA — Inteligência Artificial Pessoal
 
-A DINA será uma assistente de IA completa, acessível pelo navegador e adaptável a computador e celular.
+A DINA é uma assistente de IA pessoal, acessível pelo navegador e adaptável a computador e celular. Este repositório contém a primeira base funcional do aplicativo.
 
-## Visão do produto
+## Primeira versão
 
-A DINA deve ajudar no dia a dia e oferecer recursos de:
-- Conversa natural e assistência contextual.
-- Memória configurável de preferências, projetos e decisões.
-- Programação: criação, leitura, edição, análise e depuração de projetos.
-- Criação de conteúdo e artefatos: textos, documentos, planilhas, apresentações e imagens.
-- Trabalho com arquivos enviados pelo usuário.
-- Pesquisa na web com fontes e atualização de informações.
-- Organização de tarefas, planejamento e lembretes.
-- Integrações com serviços externos mediante autorização.
-- Execução de ferramentas com confirmação antes de ações sensíveis.
-- Histórico de conversas, configurações e controle de privacidade.
+- Interface responsiva de conversa.
+- Backend Cloudflare Pages Functions.
+- Integração com a OpenAI Responses API.
+- Histórico de mensagens durante a conversa atual.
+- Pesquisa na web opcional por ferramenta nativa.
+- Código de acesso provisório para proteger o endpoint.
+- Segredos mantidos nas variáveis de ambiente do servidor.
 
-## Princípios
+## Publicação no Cloudflare Pages
 
-1. A DINA não deve fingir que executou algo: toda ação precisa de confirmação real do serviço.
-2. Segredos e chaves de API ficam no servidor, nunca no navegador ou no Git.
-3. Ações externas (enviar mensagens, publicar, apagar ou alterar dados) exigem autorização adequada.
-4. Memória deve ser visível e controlável pelo usuário.
-5. Arquitetura modular para permitir trocar modelos e adicionar ferramentas sem reconstruir o produto.
+Conecte este repositório ao Cloudflare Pages. Configure a raiz do projeto como diretório de saída e não é necessária etapa de build para esta versão. As funções em `functions/api` serão publicadas como endpoints.
 
-## Arquitetura planejada
+Em Settings → Variables and Secrets, configure:
 
-- **Aplicação web responsiva/PWA:** interface de conversa, projetos, arquivos e configurações.
-- **Backend seguro:** autenticação, sessões, orquestração da IA e execução de ferramentas.
-- **Camada de modelos:** integração com um provedor de IA por API, com possibilidade de múltiplos provedores.
-- **Memória e dados:** banco de dados com separação por usuário e controles de retenção.
-- **Ferramentas:** arquivos, programação, pesquisa, criação de documentos e integrações autorizadas.
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `OPENAI_API_KEY` | Sim | Chave secreta da API OpenAI. Cadastre como Secret. |
+| `OPENAI_MODEL` | Sim | Identificador de um modelo habilitado no seu projeto de API. |
+| `DINA_ACCESS_CODE` | Sim | Código privado de acesso nesta versão inicial. Cadastre como Secret. |
+| `ENABLE_WEB_SEARCH` | Não | Defina `true` para habilitar pesquisa na web nativa. |
 
-## Etapas de desenvolvimento
+Depois de cadastrar ou alterar variáveis, faça um novo deploy.
 
-1. Definir experiência, identidade e requisitos da DINA.
-2. Criar a base do aplicativo e autenticação.
-3. Implementar chat conectado ao modelo de IA por backend seguro.
-4. Adicionar memória e histórico.
-5. Implementar arquivos e ferramentas de programação.
-6. Adicionar geração de documentos e imagens.
-7. Integrar agenda, e-mail e demais serviços autorizados.
-8. Testar segurança, permissões e publicar.
+**Nunca coloque a chave da OpenAI no HTML, JavaScript do navegador ou GitHub.** A API é cobrada separadamente da assinatura ChatGPT. Configure limites de uso e monitore o consumo no painel da plataforma.
 
-## Estado atual
+## Desenvolvimento local
 
-Repositório iniciado em 2026-11-24. Nenhuma chave de API ou credencial deve ser adicionada ao repositório.
+Com Wrangler instalado, execute:
+
+```bash
+npx wrangler pages dev .
+```
+
+Crie um arquivo local `.dev.vars` (não versionar) com as mesmas variáveis de ambiente.
+
+## Segurança e limitações
+
+O código compartilhado é uma proteção provisória e não substitui autenticação individual. Antes de abrir o serviço ao público, implementar login, autorização por usuário, rate limiting, limites de custo, proteção contra abuso, armazenamento seguro e política de privacidade. O histórico desta versão permanece apenas durante a sessão atual; ainda não é memória persistente.
+
+## Próximas etapas
+
+1. Autenticação individual e banco de dados.
+2. Memória configurável e histórico persistente.
+3. Upload e análise de arquivos.
+4. Espaço de projetos e ferramentas de programação/GitHub.
+5. Criação de documentos, planilhas e apresentações.
+6. Voz, geração de imagens e integrações autorizadas.
+7. Testes, observabilidade, segurança e publicação estável.
+
+A arquitetura será ampliada por módulos, sem expor credenciais no cliente e sem afirmar que uma ação foi concluída antes da confirmação do serviço.

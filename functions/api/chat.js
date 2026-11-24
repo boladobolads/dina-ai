@@ -173,7 +173,7 @@ async function callOpenRouter(env, messages) {
 
 
 function isLiveWebQuestion(text) {
-  return /\\b(quanto custa|quanto está|quanto ta|pre[cç]o|valor atual|promo[cç][aã]o|mais recente|[uú]ltimas? not[ií]cias|hoje|agora|atualmente|lan[cç]amento|cot[aã][cç][aã]o|d[oó]lar|euro|resultado de hoje|quem ganhou|quando ser[aá])\\b/i.test(text);
+  return /\\b(quanto custa|quanto est[áa]|quanto ta|pre[cç]o|valor atual|promo[cç][aã]o|mais recente|[uú]ltimas? not[ií]cias|hoje|agora|atualmente|lan[cç]amento|cot[aã][cç][aã]o|d[oó]lar|euro|resultado de hoje|quem ganhou|quando ser[aá])\\b/i.test(text);
 }
 function cleanSearchText(value) {
   return String(value || "").replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&#(\\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/\\s+/g, " ").trim();

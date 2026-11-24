@@ -28,6 +28,10 @@
   let lastVoiceSubmission = "";
   let currentAudio = null;
   let currentAudioUrl = "";
+  let fishAudioContext = null;
+  let fishAudioSource = null;
+  let recognitionStarting = false;
+  let recognitionRunning = false;
   let ttsController = null;
   let speechRun = 0;
 
@@ -160,6 +164,15 @@
       currentAudio.load();
       currentAudio = null;
     }
+    if (fishAudioSource) {
+      try { fishAudioSource.stop(); } catch {}
+      fishAudioSource.onended = null;
+      fishAudioSource = null;
+    }
+    if (fishAudioContext) {
+      try { fishAudioContext.close(); } catch {}
+      fishAudioContext = null;
+    }
     if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = ""; }
     if (synth) synth.cancel();
     speaking = false;
@@ -252,21 +265,28 @@
       logAudio("Resposta TTS recebida", "content-type=" + (response.headers.get("Content-Type") || "não informado") + "; blob.type=" + audioBlob.type + "; bytes=" + audioBlob.size);
       if (run !== speechRun || !active) return;
       if (!audioBlob.size) throw new Error("Fish Audio retornou um áudio vazio.");
-      currentAudioUrl = URL.createObjectURL(audioBlob);
-      currentAudio = new Audio(currentAudioUrl);
-      currentAudio.onplaying = () => {
-        if (run === speechRun) setStatus("A DINA está falando…", "speaking");
-      };
-      currentAudio.onended = () => finishSpeech(run);
-      currentAudio.onerror = () => {
-        if (run !== speechRun) return;
-        logAudio("Falha ao reproduzir áudio Fish Audio", "usando voz nativa do navegador");
-        if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = ""; }
-        currentAudio = null;
-        speakWithBrowser(clean, run);
-      };
-      await currentAudio.play();
-      logAudio("Fish Audio ativo", "perfil=" + selectedProfile);
+      // Decodifica o MP3 diretamente com Web Audio, evitando falhas do elemento HTMLAudio.
+      const audioBytes = await audioBlob.arrayBuffer();
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error("Este navegador não oferece AudioContext para decodificar o MP3.");
+      fishAudioContext = new AudioContextClass();
+      await fishAudioContext.resume();
+      let decodedAudio;
+      try {
+        decodedAudio = await fishAudioContext.decodeAudioData(audioBytes.slice(0));
+      } catch (decodeError) {
+        const head = Array.from(new Uint8Array(audioBytes.slice(0, 12)))
+          .map(value => value.toString(16).padStart(2, "0")).join(" ");
+        throw new Error("Chrome não conseguiu decodificar o MP3 (" + decodeError.name + "). bytes iniciais: " + head);
+      }
+      if (run !== speechRun || !active) return;
+      fishAudioSource = fishAudioContext.createBufferSource();
+      fishAudioSource.buffer = decodedAudio;
+      fishAudioSource.connect(fishAudioContext.destination);
+      fishAudioSource.onended = () => finishSpeech(run);
+      setStatus("A DINA está falando…", "speaking");
+      fishAudioSource.start(0);
+      logAudio("Fish Audio ativo", "perfil=" + selectedProfile + "; duração=" + decodedAudio.duration.toFixed(2) + "s; canais=" + decodedAudio.numberOfChannels);
     } catch (error) {
       if (run !== speechRun || error.name === "AbortError") return;
       logAudio("Fish Audio indisponível", (error.message || "falha") + "; usando voz nativa");
@@ -278,11 +298,17 @@
   }
 
   function startRecognition() {
-    if (!recognition || !active || muted) return;
+    if (!recognition || !active || muted || recognitionStarting || recognitionRunning) return;
+    recognitionStarting = true;
     try { recognition.start(); }
     catch (error) {
-      logAudio("Exceção em recognition.start()", error.name + ": " + error.message);
-      if (error.name !== "InvalidStateError") setStatus("Falha ao iniciar reconhecimento: " + error.message, "error");
+      recognitionStarting = false;
+      if (error.name !== "InvalidStateError") {
+        logAudio("Exceção em recognition.start()", error.name + ": " + error.message);
+        setStatus("Falha ao iniciar reconhecimento: " + error.message, "error");
+      } else {
+        logAudio("Início duplicado bloqueado", "SpeechRecognition já estava ativo");
+      }
     }
   }
 
@@ -292,7 +318,12 @@
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    recognition.onstart = () => { logAudio("SpeechRecognition onstart", "reconhecimento iniciado"); setStatus("Estou ouvindo…", "listening"); };
+    recognition.onstart = () => {
+      recognitionStarting = false;
+      recognitionRunning = true;
+      logAudio("SpeechRecognition onstart", "reconhecimento iniciado");
+      setStatus("Estou ouvindo…", "listening");
+    };
     recognition.onresult = (event) => {
       let finalText = "";
       let interimText = "";
@@ -354,9 +385,11 @@
       }
     };
     recognition.onend = () => {
+      recognitionStarting = false;
+      recognitionRunning = false;
       logAudio("SpeechRecognition onend", "active=" + active + "; muted=" + muted + "; speaking=" + speaking);
       // O Chrome pode encerrar o reconhecimento sozinho; mantém a conversa viva.
-      if (active && !muted) window.setTimeout(startRecognition, 100);
+      if (active && !muted) window.setTimeout(startRecognition, 150);
     };
   }
 

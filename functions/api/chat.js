@@ -171,39 +171,55 @@ async function callOpenRouter(env, messages) {
   return output;
 }
 
-function isWeatherQuestion(text) {
-  return /\b(previs[aã]o|clima|temperatura|vai chover|chance de chuva|tempo (?:hoje|amanh[ãa]))\b/i.test(text);
+
+function isLiveWebQuestion(text) {
+  return /\\b(quanto custa|quanto está|quanto ta|pre[cç]o|valor atual|promo[cç][aã]o|mais recente|[uú]ltimas? not[ií]cias|hoje|agora|atualmente|lan[cç]amento|cot[aã][cç][aã]o|d[oó]lar|euro|resultado de hoje|quem ganhou|quando ser[aá])\\b/i.test(text);
 }
-function extractWeatherCity(text) {
-  const match = text.match(/\b(?:em|para|no|na)\s+([\p{L}][\p{L} .'-]{1,45}?)(?=\s+(?:hoje|amanh[ãa]|agora|nesta semana|nos pr[oó]ximos)\b|[?.!,]|$)/iu);
-  if (match?.[1]) return match[1].trim();
-  if (/s[aã]o paulo/i.test(text)) return 'São Paulo';
-  return '';
+function cleanSearchText(value) {
+  return String(value || "").replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&#(\\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/\\s+/g, " ").trim();
 }
-async function getLiveWeatherContext(question) {
-  const city = extractWeatherCity(question);
-  if (!city) return 'A pergunta pede previsão do tempo, mas não foi possível identificar a cidade. Peça a cidade ao usuário.';
-  const geoUrl = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&language=pt&format=json';
-  const geoResponse = await fetch(geoUrl, { signal: AbortSignal.timeout(12000) });
-  if (!geoResponse.ok) throw new Error('Falha ao localizar a cidade no serviço meteorológico.');
-  const geo = await geoResponse.json();
-  const place = geo.results?.[0];
-  if (!place) return 'A cidade ' + city + ' não foi encontrada. Peça ao usuário que confirme o município.';
-  const forecastUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + place.latitude + '&longitude=' + place.longitude + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=' + encodeURIComponent(place.timezone || 'auto') + '&forecast_days=7';
-  const forecastResponse = await fetch(forecastUrl, { signal: AbortSignal.timeout(12000) });
-  if (!forecastResponse.ok) throw new Error('Falha ao consultar a previsão meteorológica.');
-  const forecast = await forecastResponse.json();
-  const codes = {0:'céu limpo',1:'predominantemente limpo',2:'parcialmente nublado',3:'nublado',45:'nevoeiro',48:'nevoeiro com geada',51:'garoa fraca',53:'garoa moderada',55:'garoa intensa',61:'chuva fraca',63:'chuva moderada',65:'chuva forte',80:'pancadas fracas',81:'pancadas moderadas',82:'pancadas fortes',95:'trovoadas',96:'trovoadas com granizo',99:'trovoadas fortes com granizo'};
-  const days = (forecast.daily?.time || []).map((date, i) => ({ date, condition: codes[forecast.daily.weather_code?.[i]] || 'condição variável', minC: forecast.daily.temperature_2m_min?.[i], maxC: forecast.daily.temperature_2m_max?.[i], precipitationProbability: forecast.daily.precipitation_probability_max?.[i] }));
-  return 'DADOS METEOROLÓGICOS CONSULTADOS AGORA (Open-Meteo) para ' + place.name + (place.admin1 ? ', ' + place.admin1 : '') + ', ' + (place.country || '') + '. Fuso: ' + (place.timezone || 'local') + '. Previsão diária: ' + JSON.stringify(days) + '. Responda especificamente para a data solicitada, com mínima, máxima, condição e chance de chuva. Não diga que está sem acesso à internet, pois estes dados foram consultados agora. Fonte: ' + forecastUrl + ' ; geocodificação: ' + geoUrl;
+async function searchWebContext(question) {
+  const query = question + " Brasil preço atual";
+  const url = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query);
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; DINA/1.0)", "Accept": "text/html" },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) throw new Error("Busca na web indisponível (HTTP " + response.status + ").");
+  const html = await response.text();
+  const results = [];
+  const anchors = [...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi)];
+  for (const match of anchors.slice(0, 6)) {
+    let href = match[1].replace(/&amp;/g, "&");
+    try {
+      const parsed = new URL(href, "https://duckduckgo.com");
+      const redirected = parsed.searchParams.get("uddg");
+      if (redirected) href = redirected;
+    } catch {}
+    const title = cleanSearchText(match[2]);
+    const after = html.slice(match.index + match[0].length, match.index + match[0].length + 1800);
+    const snippetMatch = after.match(/class="result__snippet"[^>]*>([\\s\\S]*?)<\\/(?:a|td|div)>/i);
+    const snippet = cleanSearchText(snippetMatch?.[1] || "");
+    if (title && /^https?:\\/\\//i.test(href)) results.push({ title, url: href, snippet });
+  }
+  if (!results.length) throw new Error("A pesquisa foi executada, mas não retornou resultados legíveis.");
+  return "RESULTADOS DE PESQUISA NA WEB, obtidos agora para a pergunta: " + question + "\\n" +
+    results.map((r, i) => (i + 1) + ". " + r.title + "\\n" + r.snippet + "\\nFonte: " + r.url).join("\\n\\n") +
+    "\\n\\nUse estes resultados como evidência, compare datas e preços, informe quando a informação não estiver clara e inclua os links das fontes. Se o preço depender de plataforma/edição, explique a diferença e pergunte qual plataforma o usuário usa. Não diga que está sem acesso à internet quando estes resultados estiverem presentes.";
 }
 async function addLiveContext(messages) {
   const latest = messages[messages.length - 1];
-  if (!latest || latest.role !== 'user' || !isWeatherQuestion(latest.content)) return messages;
-  let context;
-  try { context = await getLiveWeatherContext(latest.content); }
-  catch (error) { context = 'A consulta meteorológica em tempo real falhou: ' + (error?.message || 'serviço indisponível') + '. Informe essa falha com transparência e não invente previsão.'; }
-  return [...messages.slice(0, -1), { ...latest, content: latest.content + '\n\n[CONTEXTO EXTERNO VERIFICADO PELO SERVIDOR]\n' + context }];
+  if (!latest || latest.role !== "user") return messages;
+  let context = "";
+  if (isWeatherQuestion(latest.content)) {
+    try { context = await getLiveWeatherContext(latest.content); }
+    catch (error) { context = "A consulta meteorológica em tempo real falhou: " + (error?.message || "serviço indisponível") + ". Informe essa falha com transparência e não invente previsão."; }
+  } else if (isLiveWebQuestion(latest.content)) {
+    try { context = await searchWebContext(latest.content); }
+    catch (error) { context = "A pesquisa na web falhou: " + (error?.message || "serviço indisponível") + ". Informe essa falha com transparência; não invente preços, notícias ou dados atuais."; }
+  }
+  if (!context) return messages;
+  return [...messages.slice(0, -1), { ...latest, content: latest.content + "\\n\\n[CONTEXTO EXTERNO CONSULTADO PELO SERVIDOR]\\n" + context }];
 }
 
 const runners = { gemini: callGemini, openrouter: callOpenRouter, openai: callOpenAI, ollama: callOllama };

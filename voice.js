@@ -117,7 +117,6 @@
     const names = {
       dina: /female|feminina|woman|mulher|francisca|maria|luciana|camila|fernanda|heloisa|helena|leticia|bruna/i,
       jarvis: /male|mascul|homem|daniel|ricardo|antonio|carlos|jorge|felipe|thiago|bruno|guilherme|google português do brasil/i,
-      luffy: /male|mascul|homem|daniel|ricardo|antonio|carlos|jorge|felipe|thiago|bruno|guilherme/i
     };
     const natural = /natural|online|neural|google/i;
     const matching = pool.filter(v => names[profile]?.test(v.name));
@@ -132,7 +131,6 @@
     const labels = {
       dina: "DINA feminina selecionada",
       jarvis: "Perfil JARVIS selecionado",
-      luffy: "Perfil LUFFY selecionado"
     };
     logAudio("Perfil de voz alterado", labels[selectedProfile] || selectedProfile);
     if (active && speaking) {
@@ -161,11 +159,10 @@
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(clean.slice(0, 7000));
     utterance.lang = "pt-BR";
-    // Perfil vocal inspirado em uma assistente futurista: calmo, claro e refinado.
+    // DINA: voz feminina mais jovem, leve e natural. JARVIS: grave e sereno.
     const profiles = {
-      dina: { rate: 0.93, pitch: 1.0 },
+      dina: { rate: 1.0, pitch: 1.16 },
       jarvis: { rate: 0.88, pitch: 0.72 },
-      luffy: { rate: 1.08, pitch: 1.22 }
     };
     const profile = profiles[selectedProfile] || profiles.dina;
     utterance.rate = profile.rate;

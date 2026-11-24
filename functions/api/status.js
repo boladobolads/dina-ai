@@ -12,6 +12,7 @@ export async function onRequestGet({ env }) {
     providers,
     defaultProvider: "auto",
     providerOrder: order,
+    webSearch: env.DINA_WEB_SEARCH !== "false" || env.ENABLE_WEB_SEARCH === "true",
     video: Boolean(env.NURETA_API_KEY),
     videoEngine: Boolean(env.DINA_VIDEO_ENGINE_URL),
     ready: Boolean(env.DINA_ACCESS_CODE && order.length)

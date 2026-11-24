@@ -25,6 +25,10 @@
   // Envia a fala após 650 ms sem novas palavras, sem esperar a pausa longa do navegador.
   let speechSilenceTimer = null;
   let lastVoiceSubmission = "";
+  let currentAudio = null;
+  let currentAudioUrl = "";
+  let ttsController = null;
+  let speechRun = 0;
 
   // Diagnóstico visível: registra etapas e erros sem coletar mensagens ou chaves.
   const diag = document.createElement("section");
@@ -104,7 +108,7 @@
     if (permissionStream) { permissionStream.getTracks().forEach(track => track.stop()); permissionStream = null; }
     speaking = false;
     if (recognition) { try { recognition.stop(); } catch {} }
-    if (synth) synth.cancel();
+    stopCurrentSpeech();
     if (room.open) room.close();
     micButton.textContent = "🎙️";
     muteButton?.classList.remove("is-muted");
@@ -138,31 +142,45 @@
     logAudio("Perfil de voz alterado", labels[selectedProfile] || selectedProfile);
     if (active && speaking) {
       const current = roomTranscript.textContent.replace(/^DINA:\s*/, "");
-      if (synth) synth.cancel();
-      speaking = false;
+      stopCurrentSpeech();
       speak(current);
     }
   }
   voiceProfile?.addEventListener("change", applyVoiceProfile);
 
-  function speak(text) {
-    if (!synth || !text || !active) return;
-    const clean = String(text).replace(/https?:\/\/\S+/g, "link disponível na conversa")
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-      // Emojis continuam visíveis no chat, mas não são narrados pela voz.
-      .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, "")
-      .replace(/[*_#`]/g, "")
-      .replace(/[ \t]{2,}/g, " ")
-      .replace(/\s+([,.!?;:])/g, "$1")
-      .trim();
-    if (!clean) return;
-    speaking = true;
-    restartAfterSpeech = active && !muted;
-    // Mantém o reconhecimento ativo durante a fala para detectar a palavra de ativação "DINA".
+  function stopCurrentSpeech() {
+    speechRun++;
+    if (ttsController) { ttsController.abort(); ttsController = null; }
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.removeAttribute("src");
+      currentAudio.load();
+      currentAudio = null;
+    }
+    if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = ""; }
+    if (synth) synth.cancel();
+    speaking = false;
+  }
+
+  function finishSpeech(run) {
+    if (run !== speechRun) return;
+    speaking = false;
+    currentAudio = null;
+    if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = ""; }
+    if (active && restartAfterSpeech && !muted) {
+      setStatus("Sua vez! Pode falar.", "listening");
+      logAudio("DINA terminou de falar", "reativando escuta");
+      startRecognition();
+    } else if (active) {
+      setStatus("Microfone pausado.", "idle");
+    }
+  }
+
+  function speakWithBrowser(clean, run) {
+    if (!synth || run !== speechRun || !active) return;
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(clean.slice(0, 7000));
     utterance.lang = "pt-BR";
-    // DINA: voz feminina mais jovem, leve e natural. JARVIS: grave e sereno.
     const profiles = {
       dina: { rate: 1.0, pitch: 1.16 },
       jarvis: { rate: 0.88, pitch: 0.72 },
@@ -173,20 +191,77 @@
     utterance.volume = 1;
     const voice = choosePortugueseVoice(selectedProfile);
     if (voice) utterance.voice = voice;
-    utterance.onstart = () => setStatus("A DINA está respondendo por voz…", "speaking");
-    utterance.onend = () => {
-      speaking = false;
-      if (active && restartAfterSpeech && !muted) {
-        // Assim que a voz da DINA termina, o microfone fica pronto para a próxima fala.
-        setStatus("Sua vez! Pode falar.", "listening");
-        logAudio("DINA terminou de falar", "reativando escuta imediatamente");
-        startRecognition();
-      } else if (active) {
-        setStatus("Microfone pausado.", "idle");
+    utterance.onstart = () => {
+      if (run === speechRun) setStatus("A DINA está respondendo por voz…", "speaking");
+    };
+    utterance.onend = () => finishSpeech(run);
+    utterance.onerror = () => {
+      if (run === speechRun) {
+        speaking = false;
+        if (active) setStatus("Não foi possível reproduzir a resposta.", "error");
       }
     };
-    utterance.onerror = () => { speaking = false; if (active) setStatus("Não foi possível reproduzir a resposta.", "error"); };
     synth.speak(utterance);
+  }
+
+  async function speak(text) {
+    if (!text || !active) return;
+    const clean = String(text).replace(/https?:\\/\\/\\S+/g, "link disponível na conversa")
+      .replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1")
+      .replace(/[\\p{Extended_Pictographic}\\p{Emoji_Presentation}\\uFE0F\\u200D]/gu, "")
+      .replace(/[*_#`]/g, "")
+      .replace(/[ \\t]{2,}/g, " ")
+      .replace(/\\s+([,.!?;:])/g, "$1")
+      .trim();
+    if (!clean) return;
+
+    stopCurrentSpeech();
+    const run = speechRun;
+    speaking = true;
+    restartAfterSpeech = active && !muted;
+    setStatus("Preparando a voz da DINA…", "speaking");
+    ttsController = new AbortController();
+
+    try {
+      const response = await fetch("/api/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-DINA-ACCESS-CODE": sessionStorage.getItem("dina_access_code") || ""
+        },
+        body: JSON.stringify({ text: clean.slice(0, 5000), profile: selectedProfile }),
+        signal: ttsController.signal
+      });
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}));
+        throw new Error(detail.error || "Fish Audio HTTP " + response.status);
+      }
+      const audioBlob = await response.blob();
+      if (run !== speechRun || !active) return;
+      if (!audioBlob.size) throw new Error("Fish Audio retornou um áudio vazio.");
+      currentAudioUrl = URL.createObjectURL(audioBlob);
+      currentAudio = new Audio(currentAudioUrl);
+      currentAudio.onplaying = () => {
+        if (run === speechRun) setStatus("A DINA está falando…", "speaking");
+      };
+      currentAudio.onended = () => finishSpeech(run);
+      currentAudio.onerror = () => {
+        if (run !== speechRun) return;
+        logAudio("Falha ao reproduzir áudio Fish Audio", "usando voz nativa do navegador");
+        if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = ""; }
+        currentAudio = null;
+        speakWithBrowser(clean, run);
+      };
+      await currentAudio.play();
+      logAudio("Fish Audio ativo", "perfil=" + selectedProfile);
+    } catch (error) {
+      if (run !== speechRun || error.name === "AbortError") return;
+      logAudio("Fish Audio indisponível", (error.message || "falha") + "; usando voz nativa");
+      ttsController = null;
+      speakWithBrowser(clean, run);
+    } finally {
+      if (run === speechRun) ttsController = null;
+    }
   }
 
   function startRecognition() {
@@ -219,8 +294,7 @@
         if (/(^|\\W)dina(\\W|$)/i.test(heard)) {
           logAudio("Palavra de ativação detectada", "DINA");
           restartAfterSpeech = false;
-          if (synth) synth.cancel();
-          speaking = false;
+          stopCurrentSpeech();
           setStatus("Pode falar. Estou ouvindo…", "listening");
           startRecognition();
         }
@@ -333,8 +407,7 @@
     if (!active) { openVoiceRoom(); return; }
     // Interrompe imediatamente a síntese e mantém a sala aberta para ouvir o usuário.
     restartAfterSpeech = false;
-    if (synth) synth.cancel();
-    speaking = false;
+    stopCurrentSpeech();
     muted = false;
     if (muteButton) {
       muteButton.textContent = "🎙️";

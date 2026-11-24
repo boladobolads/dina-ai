@@ -14,14 +14,20 @@ export async function onRequestPost({ request, env }) {
   let body;
   try { body = await request.json(); } catch { return fail("Solicitação inválida."); }
   const text = typeof body.text === "string" ? body.text.trim() : "";
-  const profile = body.profile === "fish" ? "fish" : "dina";
+  const profile = ["fish", "fish2", "fish3"].includes(body.profile) ? body.profile : "fish";
   if (!text) return fail("Não há texto para transformar em voz.");
   if (text.length > 5000) return fail("Texto muito longo para uma única geração.", 413);
 
-  const referenceId = env.FISH_DINA_VOICE_ID;
+  const voiceConfig = {
+    fish: { id: env.FISH_DINA_VOICE_ID, label: "Voz 1" },
+    fish2: { id: env.FISH_VOICE_2_ID, label: "Voz 2" },
+    fish3: { id: env.FISH_VOICE_3_ID, label: "Voz 3" }
+  };
+  const selectedVoice = voiceConfig[profile];
+  const referenceId = selectedVoice?.id;
+  if (!referenceId) return fail("Configure o identificador da Fish Audio para " + selectedVoice.label + " no Cloudflare.", 503);
 
-  const payload = { text, format: "mp3" };
-  if (referenceId) payload.reference_id = referenceId;
+  const payload = { text, format: "mp3", reference_id: referenceId };
 
   let response;
   try {

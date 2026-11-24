@@ -5,6 +5,7 @@ A DINA é uma assistente de IA pessoal, acessível pelo navegador e adaptável a
 ## Arquitetura de motores
 
 - **Gemini API:** motor em nuvem com modalidade gratuita sujeita a cotas, disponibilidade regional e termos do Google.
+- **OpenRouter:** gateway para diversos modelos, incluindo variantes gratuitas; os modelos gratuitos têm limites de uso e disponibilidade variável.
 - **Ollama:** execução de modelos abertos em uma máquina controlada pelo usuário; não há cobrança por token do provedor, mas há custo de hardware e energia.
 - **OpenAI API:** motor adicional opcional, cobrado conforme o uso e o modelo.
 - **Automático:** tenta os provedores configurados na ordem definida em `DINA_PROVIDER_ORDER`; se um falhar, tenta o próximo.
@@ -19,17 +20,21 @@ Configure em Settings → Variables and Secrets. Cadastre chaves e códigos como
 | Nome | Tipo | Obrigatória | Finalidade |
 |---|---|---|---|
 | `DINA_ACCESS_CODE` | Secret | Sim | Código privado de acesso provisório |
-| `DINA_PROVIDER_ORDER` | Variable | Não | Ordem de fallback. Padrão: `gemini,ollama,openai` |
+| `DINA_PROVIDER_ORDER` | Variable | Não | Ordem de fallback. Padrão: `gemini,openrouter,ollama,openai` |
 | `GEMINI_API_KEY` | Secret | Para Gemini | Chave criada no Google AI Studio |
 | `GEMINI_MODEL` | Variable | Para Gemini | Modelo principal, por exemplo `gemini-3.8-flash` |
 | `GEMINI_FALLBACK_MODEL` | Variable | Não | Modelo alternativo em caso de sobrecarga; padrão: `gemini-3.5-flash-lite` |
 | `OLLAMA_BASE_URL` | Variable | Para Ollama | URL base do serviço Ollama, sem barra final |
 | `OLLAMA_MODEL` | Variable | Para Ollama | Nome do modelo baixado no Ollama, por exemplo `llama3.2` |
+| `OPENROUTER_API_KEY` | Secret | Para OpenRouter | Chave secreta criada em OpenRouter |
+| `OPENROUTER_MODEL` | Variable | Não | Modelo OpenRouter; padrão `openrouter/free` |
+| `OPENROUTER_SITE_URL` | Variable | Não | URL opcional enviada como identificação da aplicação |
+| `OPENROUTER_APP_NAME` | Variable | Não | Nome opcional da aplicação enviado ao provedor |
 | `OPENAI_API_KEY` | Secret | Para OpenAI | Chave secreta da API OpenAI |
 | `OPENAI_MODEL` | Variable | Para OpenAI | Identificador de um modelo habilitado no projeto |
 | `ENABLE_WEB_SEARCH` | Variable | Não | Defina `true` para habilitar a ferramenta de pesquisa da OpenAI |
 
-Você pode começar somente com Gemini: configure `DINA_ACCESS_CODE`, `GEMINI_API_KEY` e `GEMINI_MODEL`. Não é necessário configurar OpenAI para a DINA responder. O backend repete automaticamente falhas temporárias (como HTTP 429/503) e tenta o modelo alternativo `GEMINI_FALLBACK_MODEL`; por padrão, usa `gemini-3.5-flash-lite`.
+Você pode começar somente com Gemini: configure `DINA_ACCESS_CODE`, `GEMINI_API_KEY` e `GEMINI_MODEL`. Para acrescentar modelos gratuitos de vários provedores, configure `OPENROUTER_API_KEY`; sem `OPENROUTER_MODEL`, será usado `openrouter/free`. Não é necessário configurar OpenAI para a DINA responder. O backend repete automaticamente falhas temporárias (como HTTP 429/503) e tenta o modelo alternativo `GEMINI_FALLBACK_MODEL`; por padrão, usa `gemini-3.5-flash-lite`.
 
 ### Como configurar o Gemini
 
@@ -39,6 +44,16 @@ Você pode começar somente com Gemini: configure `DINA_ACCESS_CODE`, `GEMINI_AP
 4. Informe em `GEMINI_MODEL` um identificador de modelo que esteja habilitado para sua chave e região.
 
 O nível gratuito tem limites de uso, que podem mudar. Consulte as condições e cotas atuais no AI Studio antes de depender dele em produção.
+
+### Como configurar o OpenRouter
+
+1. Crie uma conta em [OpenRouter](https://openrouter.ai/).
+2. Gere uma chave em [Keys](https://openrouter.ai/settings/keys).
+3. Cadastre `OPENROUTER_API_KEY` no Cloudflare Pages como Secret.
+4. Opcionalmente, defina `OPENROUTER_MODEL`. O padrão `openrouter/free` encaminha a solicitação para um modelo gratuito disponível.
+5. Faça um novo deploy e selecione OpenRouter ou Automático na DINA.
+
+**Limites:** os modelos gratuitos podem ter cotas, filas, indisponibilidade e janelas de contexto menores. A documentação atual informa, em geral, 20 solicitações por minuto e 50 por dia para variantes gratuitas em contas sem créditos comprados. Confira os limites vigentes no painel. Para manter o uso sem cobrança, não configure fallback para modelos pagos.
 
 ### Como configurar o Ollama
 
@@ -55,7 +70,7 @@ O nível gratuito tem limites de uso, que podem mudar. Consulte as condições e
 A ordem padrão é:
 
 ```text
-gemini,ollama,openai
+gemini,openrouter,ollama,openai
 ```
 
 Altere `DINA_PROVIDER_ORDER` para mudar a prioridade. O modo Automático tenta somente os provedores que estiverem configurados. Se escolher um provedor específico, a DINA não fará fallback para outro.
@@ -80,6 +95,8 @@ Crie um arquivo local `.dev.vars` (não versionar) com as variáveis que deseja 
 DINA_ACCESS_CODE=seu-codigo-local
 GEMINI_API_KEY=sua-chave
 GEMINI_MODEL=gemini-3.8-flash
+OPENROUTER_API_KEY=sua-chave-openrouter
+OPENROUTER_MODEL=openrouter/free
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=llama3.2
 DINA_PROVIDER_ORDER=gemini,ollama

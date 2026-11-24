@@ -133,16 +133,25 @@
   }
 
   async function openVoiceRoom() {
+    // A sala deve abrir mesmo quando o navegador não oferece reconhecimento de fala.
+    try {
+      if (!room.open) room.showModal();
+    } catch (error) {
+      room.setAttribute("open", "");
+    }
+    roomTranscript.textContent = "Preparando a conversa por voz…";
+    setStatus("Preparando o microfone…", "idle");
+
     if (!SpeechRecognition) {
-      setStatus("Reconhecimento de voz indisponível. Use Chrome ou Edge atualizado.", "error");
+      setStatus("A tela de voz abriu, mas este navegador não oferece reconhecimento de fala. Teste no Chrome ou Edge atualizado.", "error");
+      roomTranscript.textContent = "Reconhecimento de voz indisponível neste navegador.";
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
       setStatus("O navegador não liberou áudio. Abra a DINA em HTTPS.", "error");
+      roomTranscript.textContent = "Não foi possível acessar o recurso de áudio do navegador.";
       return;
     }
-    if (!room.open) room.showModal();
-    roomTranscript.textContent = "Aguardando sua fala…";
     setStatus("Solicitando acesso ao microfone…", "idle");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -163,7 +172,7 @@
         SecurityError: "O navegador bloqueou o microfone. Abra a DINA em HTTPS."
       };
       setStatus(messages[reason] || ("Falha ao acessar o microfone: " + reason), "error");
-      roomTranscript.textContent = "Confira a permissão do microfone e tente novamente.";
+      roomTranscript.textContent = "Falha ao iniciar o áudio: " + reason;
     }
   }
 

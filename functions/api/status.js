@@ -1,0 +1,1 @@
+export async function onRequestGet({env}){return Response.json({ready:Boolean(env.OPENAI_API_KEY&&env.OPENAI_MODEL&&env.DINA_ACCESS_CODE),accessRequired:Boolean(env.DINA_ACCESS_CODE),assistant:"DINA"},{headers:{"Cache-Control":"no-store"}});}

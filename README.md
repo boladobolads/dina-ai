@@ -21,14 +21,15 @@ Configure em Settings → Variables and Secrets. Cadastre chaves e códigos como
 | `DINA_ACCESS_CODE` | Secret | Sim | Código privado de acesso provisório |
 | `DINA_PROVIDER_ORDER` | Variable | Não | Ordem de fallback. Padrão: `gemini,ollama,openai` |
 | `GEMINI_API_KEY` | Secret | Para Gemini | Chave criada no Google AI Studio |
-| `GEMINI_MODEL` | Variable | Para Gemini | Nome exato de um modelo disponível na sua conta, por exemplo `gemini-2.5-flash` se estiver habilitado |
+| `GEMINI_MODEL` | Variable | Para Gemini | Modelo principal, por exemplo `gemini-3.8-flash` |
+| `GEMINI_FALLBACK_MODEL` | Variable | Não | Modelo alternativo em caso de sobrecarga; padrão: `gemini-3.5-flash-lite` |
 | `OLLAMA_BASE_URL` | Variable | Para Ollama | URL base do serviço Ollama, sem barra final |
 | `OLLAMA_MODEL` | Variable | Para Ollama | Nome do modelo baixado no Ollama, por exemplo `llama3.2` |
 | `OPENAI_API_KEY` | Secret | Para OpenAI | Chave secreta da API OpenAI |
 | `OPENAI_MODEL` | Variable | Para OpenAI | Identificador de um modelo habilitado no projeto |
 | `ENABLE_WEB_SEARCH` | Variable | Não | Defina `true` para habilitar a ferramenta de pesquisa da OpenAI |
 
-Você pode começar somente com Gemini: configure `DINA_ACCESS_CODE`, `GEMINI_API_KEY` e `GEMINI_MODEL`. Não é necessário configurar OpenAI para a DINA responder.
+Você pode começar somente com Gemini: configure `DINA_ACCESS_CODE`, `GEMINI_API_KEY` e `GEMINI_MODEL`. Não é necessário configurar OpenAI para a DINA responder. O backend repete automaticamente falhas temporárias (como HTTP 429/503) e tenta o modelo alternativo `GEMINI_FALLBACK_MODEL`; por padrão, usa `gemini-3.5-flash-lite`.
 
 ### Como configurar o Gemini
 
@@ -78,7 +79,7 @@ Crie um arquivo local `.dev.vars` (não versionar) com as variáveis que deseja 
 ```text
 DINA_ACCESS_CODE=seu-codigo-local
 GEMINI_API_KEY=sua-chave
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=llama3.2
 DINA_PROVIDER_ORDER=gemini,ollama

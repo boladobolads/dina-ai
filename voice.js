@@ -109,8 +109,16 @@
   function choosePortugueseVoice() {
     const voices = synth ? synth.getVoices() : [];
     const pt = voices.filter(v => /^pt(-|_)/i.test(v.lang));
-    const hints = /female|feminina|mulher|francisca|maria|luciana|camila|fernanda|google português do brasil/i;
-    return pt.find(v => hints.test(v.name)) || pt.find(v => /br/i.test(v.lang)) || pt[0] || null;
+    const brazilian = pt.filter(v => /^pt[-_]BR$/i.test(v.lang));
+    // Prioriza vozes femininas/naturais em português brasileiro.
+    const femaleHints = /female|feminina|woman|mulher|francisca|maria|luciana|camila|fernanda|heloisa|helena|leticia|bruna|google português do brasil/i;
+    const naturalHints = /natural|online|neural|google/i;
+    const pool = brazilian.length ? brazilian : pt;
+    return pool.find(v => femaleHints.test(v.name) && naturalHints.test(v.name))
+      || pool.find(v => femaleHints.test(v.name))
+      || pool.find(v => naturalHints.test(v.name))
+      || pool[0]
+      || null;
   }
 
   function speak(text) {
@@ -124,8 +132,10 @@
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(clean.slice(0, 7000));
     utterance.lang = "pt-BR";
-    utterance.rate = 1;
-    utterance.pitch = 1.04;
+    // Perfil vocal inspirado em uma assistente futurista: calmo, claro e refinado.
+    utterance.rate = 0.93;
+    utterance.pitch = 1.0;
+    utterance.volume = 1;
     const voice = choosePortugueseVoice();
     if (voice) utterance.voice = voice;
     utterance.onstart = () => setStatus("A DINA está respondendo por voz…", "speaking");

@@ -23,7 +23,7 @@
   const diag = document.createElement("section");
   diag.id = "voice-diagnostics";
   diag.style.cssText = "width:min(100%,560px);margin:18px auto 0;text-align:left;background:#111827;border:1px solid #374151;border-radius:12px;padding:12px;color:#e5e7eb;font:12px/1.45 monospace";
-  diag.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><strong>Diagnóstico do áudio</strong><button type="button" id="voice-copy-log" style="padding:6px 10px;border-radius:8px">Copiar log</button></div><pre id="voice-log" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;margin:0">Aguardando teste…</pre>';
+  diag.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><strong>Diagnóstico do áudio</strong><span style="display:flex;gap:6px"><button type="button" id="voice-test-mic" style="padding:6px 10px;border-radius:8px">Testar microfone</button><button type="button" id="voice-copy-log" style="padding:6px 10px;border-radius:8px">Copiar log</button></span></div><pre id="voice-log" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;margin:0">Aguardando teste…</pre>';
   room.querySelector(".voice-room-inner")?.appendChild(diag);
   const logOutput = diag.querySelector("#voice-log");
   const logLines = [];
@@ -34,6 +34,22 @@
     if (logOutput) logOutput.textContent = logLines.join("\\n");
     console.info("[DINA-VOICE]", line);
   }
+  diag.querySelector("#voice-test-mic")?.addEventListener("click", async () => {
+    logAudio("Teste independente iniciado", "getUserMedia({audio:true})");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      logAudio("Teste independente indisponível", "mediaDevices.getUserMedia ausente");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const tracks = stream.getAudioTracks();
+      logAudio("CAPTURA DE MICROFONE OK", "tracks=" + tracks.length + "; label=" + (tracks[0]?.label || "sem identificação") + "; readyState=" + (tracks[0]?.readyState || "desconhecido"));
+      stream.getTracks().forEach(track => track.stop());
+      logAudio("Teste independente finalizado", "stream encerrada após confirmação");
+    } catch (error) {
+      logAudio("FALHA NA CAPTURA DO MICROFONE", error.name + ": " + error.message);
+    }
+  });
   diag.querySelector("#voice-copy-log")?.addEventListener("click", async () => {
     const report = [
       "DINA - DIAGNÓSTICO DE ÁUDIO",

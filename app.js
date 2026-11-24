@@ -45,7 +45,7 @@ async function sendMessage(value) {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-DINA-ACCESS-CODE": sessionStorage.getItem("dina_access_code") || "" },
-      body: JSON.stringify({ messages: history, provider: $("#provider").value })
+      body: JSON.stringify({ messages: history, provider: $("#provider").value, voiceProfile: $("#voice-profile")?.value || "dina" })
     });
     const rawResponse = await response.text();
     let data = {};

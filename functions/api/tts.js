@@ -14,13 +14,11 @@ export async function onRequestPost({ request, env }) {
   let body;
   try { body = await request.json(); } catch { return fail("Solicitação inválida."); }
   const text = typeof body.text === "string" ? body.text.trim() : "";
-  const profile = body.profile === "jarvis" ? "jarvis" : "dina";
+  const profile = body.profile === "fish" ? "fish" : "dina";
   if (!text) return fail("Não há texto para transformar em voz.");
   if (text.length > 5000) return fail("Texto muito longo para uma única geração.", 413);
 
-  const referenceId = profile === "jarvis"
-    ? env.FISH_JARVIS_VOICE_ID
-    : env.FISH_DINA_VOICE_ID;
+  const referenceId = env.FISH_DINA_VOICE_ID;
 
   const payload = { text, format: "mp3" };
   if (referenceId) payload.reference_id = referenceId;

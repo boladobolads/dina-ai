@@ -18,6 +18,7 @@
   let muted = false;
   let speaking = false;
   let restartAfterSpeech = false;
+  let permissionStream = null;
 
   // Diagnóstico visível: registra etapas e erros sem coletar mensagens ou chaves.
   const diag = document.createElement("section");
@@ -94,6 +95,7 @@
     active = false;
     muted = false;
     restartAfterSpeech = false;
+    if (permissionStream) { permissionStream.getTracks().forEach(track => track.stop()); permissionStream = null; }
     speaking = false;
     if (recognition) { try { recognition.stop(); } catch {} }
     if (synth) synth.cancel();
@@ -214,13 +216,35 @@
       roomTranscript.textContent = "Reconhecimento de voz indisponível neste navegador.";
       return;
     }
-    // Não fazemos uma chamada getUserMedia separada: o SpeechRecognition do Chrome
-    // solicita e gerencia o microfone por conta própria. A verificação prévia pode
-    // retornar NotAllowedError mesmo quando o reconhecimento de fala está disponível.
+    // Solicita a permissão explicitamente durante o clique do usuário.
+    // A stream é encerrada após a autorização; o SpeechRecognition assume em seguida.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      logAudio("getUserMedia indisponível", "navigator.mediaDevices.getUserMedia ausente");
+      setStatus("Este navegador não permite acessar o microfone. Atualize o Chrome.", "error");
+      return;
+    }
+    setStatus("Solicitando autorização para usar o microfone…", "idle");
+    logAudio("Solicitando permissão explícita", "getUserMedia({audio:true})");
+    try {
+      permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const tracks = permissionStream.getAudioTracks();
+      logAudio("PERMISSÃO CONCEDIDA", "tracks=" + tracks.length + "; label=" + (tracks[0]?.label || "sem identificação"));
+      permissionStream.getTracks().forEach(track => track.stop());
+      permissionStream = null;
+    } catch (error) {
+      logAudio("PERMISSÃO DO MICROFONE RECUSADA", error.name + ": " + error.message);
+      active = false;
+      micButton.textContent = "🎙️";
+      setStatus(error.name === "NotAllowedError"
+        ? "O Chrome bloqueou o acesso ao microfone para este site. Verifique a permissão específica de dina-ai.pages.dev."
+        : "Não foi possível acessar o microfone: " + error.message, "error");
+      roomTranscript.textContent = "A DINA não recebeu autorização para acessar o microfone. Consulte o diagnóstico.";
+      return;
+    }
     active = true;
     muted = false;
     micButton.textContent = "🔴";
-    setStatus("Iniciando reconhecimento de voz…", "idle");
+    setStatus("Autorização concedida. Iniciando reconhecimento…", "idle");
     logAudio("Solicitando início do reconhecimento", "idioma=pt-BR; continuous=true");
     startRecognition();
   }

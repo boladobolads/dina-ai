@@ -43,3 +43,19 @@
  .provider-picker{font-size:0}
  .provider-picker select{font-size:9px;max-width:90px}
 }
+
+
+/* DINA Voice ao lado do botão Enviar */
+.composer-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.composer-actions #voice-status{font-size:9px;color:#9299b3;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.composer-actions button.voice-start,.composer-actions button.voice-stop{height:34px;min-width:36px;padding:0 10px;border:1px solid #9387ed66;border-radius:10px;background:#8d80ee19;color:#eeeaff;font:600 11px 'DM Sans';cursor:pointer}
+.composer-actions button.voice-stop{min-width:34px;background:#ffffff08;border-color:#ffffff20;color:#c4c9dc}
+.composer-actions button:disabled{opacity:.4;cursor:not-allowed}
+#voice-transcript{margin:7px 5px 0;color:#858da9;font-size:10px;line-height:1.4}
+@media(max-width:520px){
+ .composer-bottom{gap:5px}
+ .composer-bottom>span{font-size:8px;max-width:110px;line-height:1.3}
+ .composer-actions{gap:4px}
+ .composer-actions #voice-status{display:none}
+ .composer-actions button.voice-start{padding:0 8px;font-size:10px}
+}

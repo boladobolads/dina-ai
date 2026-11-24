@@ -47,8 +47,14 @@ async function sendMessage(value) {
       headers: { "Content-Type": "application/json", "X-DINA-ACCESS-CODE": sessionStorage.getItem("dina_access_code") || "" },
       body: JSON.stringify({ messages: history, provider: $("#provider").value })
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Não foi possível falar com a IA.");
+    const rawResponse = await response.text();
+    let data = {};
+    try { data = rawResponse ? JSON.parse(rawResponse) : {}; } catch {}
+    if (!response.ok) {
+      const detail = data.error || rawResponse.slice(0, 500) || "O servidor não enviou detalhes.";
+      throw new Error("Erro HTTP " + response.status + " em /api/chat: " + detail);
+    }
+    if (!data.answer) throw new Error("A API respondeu, mas não enviou uma resposta. Retorno: " + rawResponse.slice(0, 300));
     pending.classList.remove("typing");
     pending.textContent = data.answer || "Não recebi uma resposta desta vez.";
     document.dispatchEvent(new CustomEvent("dina:assistant-response", { detail: { text: data.answer || "" } }));

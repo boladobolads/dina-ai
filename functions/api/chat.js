@@ -185,7 +185,7 @@ async function callOpenRouter(env, messages, systemPrompt) {
       model: (env.OPENROUTER_MODEL || "openrouter/free") + (env.ENABLE_WEB_SEARCH === "true" ? ":online" : ""),
       plugins: env.ENABLE_WEB_SEARCH === "true" ? [{ id: "web" }] : undefined,
       messages: [
-        { role: "system", content: activeSystemPrompt },
+        { role: "system", content: systemPrompt },
         ...messages.map(m => ({ role: m.role, content: m.content.slice(0, 20000) }))
       ],
       temperature: 0.7,

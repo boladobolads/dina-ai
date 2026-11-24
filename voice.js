@@ -249,6 +249,7 @@
         throw new Error(detail.error || "Fish Audio HTTP " + response.status);
       }
       const audioBlob = await response.blob();
+      logAudio("Resposta TTS recebida", "content-type=" + (response.headers.get("Content-Type") || "não informado") + "; blob.type=" + audioBlob.type + "; bytes=" + audioBlob.size);
       if (run !== speechRun || !active) return;
       if (!audioBlob.size) throw new Error("Fish Audio retornou um áudio vazio.");
       currentAudioUrl = URL.createObjectURL(audioBlob);

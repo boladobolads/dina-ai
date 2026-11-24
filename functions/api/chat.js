@@ -188,7 +188,7 @@ async function searchWebContext(question) {
   if (!response.ok) throw new Error("Busca na web indisponível (HTTP " + response.status + ").");
   const html = await response.text();
   const results = [];
-  const anchors = [...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi)];
+  const anchors = [...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
   for (const match of anchors.slice(0, 6)) {
     let href = match[1].replace(/&amp;/g, "&");
     try {

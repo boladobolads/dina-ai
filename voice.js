@@ -182,6 +182,12 @@
     if (run !== speechRun) return;
     speaking = false;
     currentAudio = null;
+    fishAudioSource = null;
+    if (fishAudioContext) {
+      const finishedContext = fishAudioContext;
+      fishAudioContext = null;
+      finishedContext.close().catch(() => {});
+    }
     if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = ""; }
     if (active && restartAfterSpeech && !muted) {
       setStatus("Sua vez! Pode falar.", "listening");

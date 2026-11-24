@@ -172,10 +172,10 @@ async function callOpenRouter(env, messages) {
 }
 
 function isWeatherQuestion(text) {
-  return /\\b(previs[aã]o|clima|temperatura|vai chover|chance de chuva|tempo (?:hoje|amanh[ãa]))\\b/i.test(text);
+  return /\b(previs[aã]o|clima|temperatura|vai chover|chance de chuva|tempo (?:hoje|amanh[ãa]))\b/i.test(text);
 }
 function extractWeatherCity(text) {
-  const match = text.match(/\\b(?:em|para|no|na)\\s+([\\p{L}][\\p{L} .'-]{1,45}?)(?=\\s+(?:hoje|amanh[ãa]|agora|nesta semana|nos pr[oó]ximos)\\b|[?.!,]|$)/iu);
+  const match = text.match(/\b(?:em|para|no|na)\s+([\p{L}][\p{L} .'-]{1,45}?)(?=\s+(?:hoje|amanh[ãa]|agora|nesta semana|nos pr[oó]ximos)\b|[?.!,]|$)/iu);
   if (match?.[1]) return match[1].trim();
   if (/s[aã]o paulo/i.test(text)) return 'São Paulo';
   return '';
@@ -203,7 +203,7 @@ async function addLiveContext(messages) {
   let context;
   try { context = await getLiveWeatherContext(latest.content); }
   catch (error) { context = 'A consulta meteorológica em tempo real falhou: ' + (error?.message || 'serviço indisponível') + '. Informe essa falha com transparência e não invente previsão.'; }
-  return [...messages.slice(0, -1), { ...latest, content: latest.content + '\\n\\n[CONTEXTO EXTERNO VERIFICADO PELO SERVIDOR]\\n' + context }];
+  return [...messages.slice(0, -1), { ...latest, content: latest.content + '\n\n[CONTEXTO EXTERNO VERIFICADO PELO SERVIDOR]\n' + context }];
 }
 
 const runners = { gemini: callGemini, openrouter: callOpenRouter, openai: callOpenAI, ollama: callOllama };

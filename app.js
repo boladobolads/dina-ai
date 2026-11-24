@@ -51,6 +51,7 @@ async function sendMessage(value) {
     if (!response.ok) throw new Error(data.error || "Não foi possível falar com a IA.");
     pending.classList.remove("typing");
     pending.textContent = data.answer || "Não recebi uma resposta desta vez.";
+    document.dispatchEvent(new CustomEvent("dina:assistant-response", { detail: { text: data.answer || "" } }));
     if (data.provider) {
       const tag = document.createElement("small");
       tag.className = "provider-tag";

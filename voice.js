@@ -147,33 +147,14 @@
       roomTranscript.textContent = "Reconhecimento de voz indisponível neste navegador.";
       return;
     }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus("O navegador não liberou áudio. Abra a DINA em HTTPS.", "error");
-      roomTranscript.textContent = "Não foi possível acessar o recurso de áudio do navegador.";
-      return;
-    }
-    setStatus("Solicitando acesso ao microfone…", "idle");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop());
-      active = true;
-      muted = false;
-      micButton.textContent = "🔴";
-      setStatus("Estou ouvindo…", "listening");
-      startRecognition();
-    } catch (error) {
-      active = false;
-      const reason = error?.name || error?.message || "erro desconhecido";
-      const messages = {
-        NotAllowedError: "Acesso bloqueado. Autorize o microfone nas permissões do site e do Windows.",
-        PermissionDeniedError: "Acesso negado. Autorize o microfone nas permissões do site e do Windows.",
-        NotFoundError: "Nenhum microfone foi encontrado. Conecte ou habilite um dispositivo.",
-        NotReadableError: "O microfone está sendo usado por outro aplicativo.",
-        SecurityError: "O navegador bloqueou o microfone. Abra a DINA em HTTPS."
-      };
-      setStatus(messages[reason] || ("Falha ao acessar o microfone: " + reason), "error");
-      roomTranscript.textContent = "Falha ao iniciar o áudio: " + reason;
-    }
+    // Não fazemos uma chamada getUserMedia separada: o SpeechRecognition do Chrome
+    // solicita e gerencia o microfone por conta própria. A verificação prévia pode
+    // retornar NotAllowedError mesmo quando o reconhecimento de fala está disponível.
+    active = true;
+    muted = false;
+    micButton.textContent = "🔴";
+    setStatus("Iniciando reconhecimento de voz…", "idle");
+    startRecognition();
   }
 
   micButton.addEventListener("click", openVoiceRoom);

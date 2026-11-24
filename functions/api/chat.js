@@ -211,7 +211,7 @@ async function addLiveContext(messages) {
   const latest = messages[messages.length - 1];
   if (!latest || latest.role !== "user") return messages;
   let context = "";
-  if (isWeatherQuestion(latest.content)) {
+  if (typeof isWeatherQuestion === "function" && typeof getLiveWeatherContext === "function" && isWeatherQuestion(latest.content)) {
     try { context = await getLiveWeatherContext(latest.content); }
     catch (error) { context = "A consulta meteorológica em tempo real falhou: " + (error?.message || "serviço indisponível") + ". Informe essa falha com transparência e não invente previsão."; }
   } else if (isLiveWebQuestion(latest.content)) {

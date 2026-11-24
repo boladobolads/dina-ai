@@ -23,6 +23,7 @@ function fail(message, status = 400) {
 function configured(env, provider) {
   if (provider === "gemini") return Boolean(env.GEMINI_API_KEY && env.GEMINI_MODEL);
   if (provider === "openai") return Boolean(env.OPENAI_API_KEY && env.OPENAI_MODEL);
+  if (provider === "openrouter") return Boolean(env.OPENROUTER_API_KEY);
   if (provider === "ollama") return Boolean(env.OLLAMA_BASE_URL && env.OLLAMA_MODEL);
   return false;
 }
@@ -131,7 +132,41 @@ async function callOllama(env, messages) {
   if (!answer) throw new Error("Ollama não retornou texto.");
   return answer;
 }
-const runners = { gemini: callGemini, openai: callOpenAI, ollama: callOllama };
+
+async function callOpenRouter(env, messages) {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + env.OPENROUTER_API_KEY,
+      "Content-Type": "application/json",
+      "HTTP-Referer": env.OPENROUTER_SITE_URL || "https://dina-ai.pages.dev",
+      "X-Title": env.OPENROUTER_APP_NAME || "DINA"
+    },
+    body: JSON.stringify({
+      model: env.OPENROUTER_MODEL || "openrouter/free",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...messages.map(m => ({ role: m.role, content: m.content.slice(0, 20000) }))
+      ],
+      temperature: 0.7,
+      max_tokens: 3000
+    }),
+    signal: AbortSignal.timeout(60000)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || `OpenRouter respondeu com HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  const answer = data.choices?.[0]?.message?.content;
+  const output = typeof answer === "string" ? answer.trim()
+    : Array.isArray(answer) ? answer.map(part => part.text || "").join("").trim() : "";
+  if (!output) throw new Error("OpenRouter não retornou texto.");
+  return output;
+}
+
+const runners = { gemini: callGemini, openrouter: callOpenRouter, openai: callOpenAI, ollama: callOllama };
 
 export async function onRequestPost({ request, env }) {
   if (!env.DINA_ACCESS_CODE) return fail("Configure DINA_ACCESS_CODE como Secret no Cloudflare.", 503);
@@ -142,8 +177,8 @@ export async function onRequestPost({ request, env }) {
   const messages = body.messages.slice(-30);
   if (messages.some(m => !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string")) return fail("Histórico de conversa inválido.");
   const requested = typeof body.provider === "string" ? body.provider : "auto";
-  if (!["auto", "gemini", "ollama", "openai"].includes(requested)) return fail("Motor de IA inválido.");
-  const order = (env.DINA_PROVIDER_ORDER || "gemini,ollama,openai").split(",").map(s => s.trim().toLowerCase()).filter(p => runners[p]);
+  if (!["auto", "gemini", "openrouter", "ollama", "openai"].includes(requested)) return fail("Motor de IA inválido.");
+  const order = (env.DINA_PROVIDER_ORDER || "gemini,openrouter,ollama,openai").split(",").map(s => s.trim().toLowerCase()).filter(p => runners[p]);
   const candidates = requested === "auto" ? [...new Set(order)] : [requested];
   const available = candidates.filter(p => configured(env, p));
   if (!available.length) return fail("Nenhum motor solicitado está configurado. Configure as credenciais e os modelos no Cloudflare Pages.", 503);

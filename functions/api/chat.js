@@ -215,8 +215,8 @@ export async function onRequestPost({ request, env }) {
   try { body = await request.json(); } catch { return fail("Solicitação inválida."); }
   if (!Array.isArray(body.messages) || body.messages.length === 0) return fail("Envie uma mensagem para começar.");
   const messages = body.messages.slice(-30);
-  const messagesWithLiveContext = await addLiveContext(messages);
   if (messages.some(m => !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string")) return fail("Histórico de conversa inválido.");
+  const messagesWithLiveContext = await addLiveContext(messages);
   const requested = typeof body.provider === "string" ? body.provider : "auto";
   if (!["auto", "gemini", "openrouter", "ollama", "openai"].includes(requested)) return fail("Motor de IA inválido.");
   const order = (env.DINA_PROVIDER_ORDER || "gemini,openrouter,ollama,openai").split(",").map(s => s.trim().toLowerCase()).filter(p => runners[p]);

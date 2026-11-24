@@ -11,7 +11,7 @@
   const muteButton = $("#voice-mute");
   const voiceProfile = $("#voice-profile");
   let savedProfile = localStorage.getItem("dina_voice_profile");
-  let selectedProfile = ["dina", "jarvis", "fish"].includes(savedProfile) ? savedProfile : "dina";
+  let selectedProfile = ["dina", "jarvis", "fish", "fish2", "fish3"].includes(savedProfile) ? savedProfile : "dina";
   if (voiceProfile) voiceProfile.value = selectedProfile;
   if (!micButton || !status || !transcript || !room) return;
 
@@ -144,7 +144,9 @@
     const labels = {
       dina: "DINA feminina selecionada",
       jarvis: "Perfil JARVIS selecionado",
-      fish: "Fish Audio — voz personalizada selecionada",
+      fish: "Fish Audio — Voz 1 selecionada",
+      fish2: "Fish Audio — Voz 2 selecionada",
+      fish3: "Fish Audio — Voz 3 selecionada",
     };
     logAudio("Perfil de voz alterado", labels[selectedProfile] || selectedProfile);
     if (active && speaking) {
@@ -237,7 +239,7 @@
       .trim();
     if (!clean) return;
 
-    if (selectedProfile !== "fish") {
+    if (!["fish", "fish2", "fish3"].includes(selectedProfile)) {
       stopCurrentSpeech();
       const browserRun = speechRun;
       speaking = true;

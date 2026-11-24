@@ -29,12 +29,8 @@ function configured(env, provider) {
 function normalizeBase(url) {
   return url.replace(/\/+$/, "");
 }
-async function callGemini(env, messages) {
-  const contents = messages.map(m => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content.slice(0, 20000) }]
-  }));
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(env.GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
+async function requestGeminiModel(env, contents, model) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,10 +42,46 @@ async function callGemini(env, messages) {
     signal: AbortSignal.timeout(45000)
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error?.message || `Gemini respondeu com HTTP ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || `Gemini respondeu com HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   const answer = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
   if (!answer) throw new Error("Gemini não retornou texto.");
   return answer;
+}
+async function callGemini(env, messages) {
+  const contents = messages.map(m => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content.slice(0, 20000) }]
+  }));
+  const primary = env.GEMINI_MODEL;
+  const fallback = env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash-lite";
+  const transient = new Set([408, 429, 500, 502, 503, 504]);
+  const attempt = async model => {
+    let lastError;
+    for (let tries = 0; tries < 2; tries++) {
+      try {
+        return await requestGeminiModel(env, contents, model);
+      } catch (error) {
+        lastError = error;
+        if (!transient.has(error.status) || tries === 1) break;
+        await new Promise(resolve => setTimeout(resolve, 1200 * (tries + 1)));
+      }
+    }
+    throw lastError;
+  };
+  try {
+    return await attempt(primary);
+  } catch (primaryError) {
+    if (!transient.has(primaryError.status) || fallback === primary) throw primaryError;
+    try {
+      return await attempt(fallback);
+    } catch (fallbackError) {
+      throw new Error(`Modelo principal (${primary}): ${primaryError.message}. Modelo alternativo (${fallback}): ${fallbackError.message}`);
+    }
+  }
 }
 async function callOpenAI(env, messages) {
   const tools = env.ENABLE_WEB_SEARCH === "true" ? [{ type: "web_search" }] : undefined;

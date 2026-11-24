@@ -22,6 +22,9 @@
   let speaking = false;
   let restartAfterSpeech = false;
   let permissionStream = null;
+  // Envia a fala após 650 ms sem novas palavras, sem esperar a pausa longa do navegador.
+  let speechSilenceTimer = null;
+  let lastVoiceSubmission = "";
 
   // Diagnóstico visível: registra etapas e erros sem coletar mensagens ou chaves.
   const diag = document.createElement("section");
@@ -222,13 +225,30 @@
       if (interimText) {
         roomTranscript.textContent = interimText;
         transcript.textContent = "Reconhecendo: " + interimText;
+        // Reinicia o contador a cada palavra reconhecida: 650 ms de silêncio = fim da frase.
+        if (speechSilenceTimer) window.clearTimeout(speechSilenceTimer);
+        speechSilenceTimer = window.setTimeout(() => {
+          const phrase = (roomTranscript.textContent || "").trim();
+          if (active && !speaking && phrase && phrase !== lastVoiceSubmission && !phrase.startsWith("Você:")) {
+            lastVoiceSubmission = phrase;
+            $("#message").value = phrase;
+            roomTranscript.textContent = "Você: " + phrase;
+            transcript.textContent = "Você: " + phrase;
+            $("#chat-form").requestSubmit();
+          }
+        }, 650);
       }
       if (finalText.trim()) {
+        if (speechSilenceTimer) window.clearTimeout(speechSilenceTimer);
+        speechSilenceTimer = null;
         const phrase = finalText.trim();
-        $("#message").value = phrase;
-        roomTranscript.textContent = "Você: " + phrase;
-        transcript.textContent = "Você: " + phrase;
-        $("#chat-form").requestSubmit();
+        if (phrase !== lastVoiceSubmission) {
+          lastVoiceSubmission = phrase;
+          $("#message").value = phrase;
+          roomTranscript.textContent = "Você: " + phrase;
+          transcript.textContent = "Você: " + phrase;
+          $("#chat-form").requestSubmit();
+        }
       }
     };
     recognition.onerror = (event) => {

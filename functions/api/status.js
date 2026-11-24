@@ -2,9 +2,10 @@ export async function onRequestGet({ env }) {
   const providers = {
     gemini: Boolean(env.GEMINI_API_KEY && env.GEMINI_MODEL),
     ollama: Boolean(env.OLLAMA_BASE_URL && env.OLLAMA_MODEL),
+    openrouter: Boolean(env.OPENROUTER_API_KEY),
     openai: Boolean(env.OPENAI_API_KEY && env.OPENAI_MODEL)
   };
-  const order = (env.DINA_PROVIDER_ORDER || "gemini,ollama,openai").split(",").map(s => s.trim()).filter(p => providers[p]);
+  const order = (env.DINA_PROVIDER_ORDER || "gemini,openrouter,ollama,openai").split(",").map(s => s.trim()).filter(p => providers[p]);
   return Response.json({
     assistant: "DINA",
     accessRequired: Boolean(env.DINA_ACCESS_CODE),

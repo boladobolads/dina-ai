@@ -218,7 +218,7 @@
     };
     recognition.onend = () => {
       logAudio("SpeechRecognition onend", "active=" + active + "; muted=" + muted + "; speaking=" + speaking);
-      if (active && !speaking && !muted) window.setTimeout(startRecognition, 300);
+      if (active && !muted) window.setTimeout(startRecognition, 300);
     };
   }
 

@@ -44,10 +44,22 @@ export async function onRequestPost({ request, env }) {
     return fail("Fish Audio respondeu com HTTP " + response.status + (detail ? ": " + detail : ""), response.status === 429 ? 429 : 502);
   }
 
-  return new Response(response.body, {
+  // Fish Audio pode responder com application/octet-stream; o payload solicitado é MP3.
+  // Definimos o MIME de áudio explicitamente para o elemento Audio do navegador.
+  const audioBytes = await response.arrayBuffer();
+  if (!audioBytes.byteLength) return fail("Fish Audio retornou um arquivo de áudio vazio.", 502);
+  const bytes = new Uint8Array(audioBytes);
+  const isMp3 = (bytes.length > 3 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) ||
+    (bytes.length > 1 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0);
+  if (!isMp3) {
+    const preview = new TextDecoder().decode(bytes.slice(0, Math.min(bytes.length, 180))).replace(/[\\x00-\\x1f]/g, " ");
+    return fail("A resposta do Fish Audio não parece ser MP3. Content-Type recebido: " + (response.headers.get("Content-Type") || "não informado") + (preview ? ". Resposta: " + preview : ""), 502);
+  }
+  return new Response(audioBytes, {
     status: 200,
     headers: {
-      "Content-Type": response.headers.get("Content-Type") || "audio/mpeg",
+      "Content-Type": "audio/mpeg",
+      "Content-Length": String(audioBytes.byteLength),
       "Cache-Control": "no-store",
       "X-DINA-TTS": "fish-audio"
     }
